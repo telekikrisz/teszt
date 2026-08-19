@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --color-ink: #1b2430;
+  --color-navy: #1c3348;
+  --color-navy-deep: #132333;
+  --color-paper: #f3eee4;
+  --color-paper-2: #e8e0d2;
+  --color-clay: #c45c26;
+  --color-clay-dark: #9a3f14;
+  --color-moss: #3f6b4f;
+  --color-rule: #d7cebf;
+
+  /* Tanári felület paletta */
+  --color-forest: #1e3d2f;
+  --color-forest-2: #162e22;
+  --color-forest-muted: #2d6a4a;
+  --color-forest-active: #3a7d5a;
+  --color-sage: #f2f5f2;
+  --color-sage-border: #d4ddd6;
+  --color-forest-text: #e8f0eb;
+  --color-ink-forest: #1a2e22;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+/* Tanári felület: CSS változók felülírása a .tanar-shell scopon belül */
+.tanar-shell {
+  --color-clay: var(--color-forest-muted);
+  --color-clay-dark: var(--color-forest-2);
+  --color-navy: var(--color-forest);
+  --color-navy-deep: var(--color-forest-2);
+  --color-paper: var(--color-sage);
+  --color-paper-2: #e4ece6;
+  --color-rule: var(--color-sage-border);
+  --color-ink: var(--color-ink-forest);
+}
+
+/* A görgetősáv mindig foglal helyet — ne ugráljon a layout menüváltáskor. */
+.tanar-scroll {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: #e8c9b0;
+}

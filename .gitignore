@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+.env
+.env.local
+backend/seed-felhasznalok.local.txt
+*.log
+.DS_Store
+coverage
+.vite
+*.tsbuildinfo
+.idea
+.vscode/*
+!.vscode/extensions.json
