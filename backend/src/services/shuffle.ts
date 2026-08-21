@@ -2,8 +2,7 @@ import { shuffle } from "../lib/crypto.js";
 
 export type BankQuestion = {
   id: string;
-  text: string;
-  answers: { id: string; text: string }[];
+  answers: { id: string }[];
 };
 
 export type ShuffledAttempt = {

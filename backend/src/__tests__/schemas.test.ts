@@ -15,6 +15,7 @@ describe("Zod sémák", () => {
 
   it("elutasítja a kérdést helyes válasz nélkül", () => {
     const result = createKerdesSchema.safeParse({
+      evfolyamId: "11111111-1111-1111-1111-111111111111",
       temakorId: "11111111-1111-1111-1111-111111111111",
       szoveg: "Kérdés?",
       pontszam: 1,
@@ -28,6 +29,7 @@ describe("Zod sémák", () => {
 
   it("elfogadja az egyválasztós kérdést", () => {
     const result = createKerdesSchema.safeParse({
+      evfolyamId: "11111111-1111-1111-1111-111111111111",
       temakorId: "11111111-1111-1111-1111-111111111111",
       szoveg: "Kérdés?",
       pontszam: 1,
