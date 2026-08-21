@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BankSzuro } from "../../components/BankSzuro";
 import { Button, ErrorText, Field, Input, NumberInput, PageHeader, Textarea } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useBankSzuro } from "../../lib/bank";
+import { useBankSzuro, evfolyamOpcioi } from "../../lib/bank";
 import {
   clearFeladatDraft,
   hasMeaningfulFormDraft,
@@ -28,6 +28,7 @@ export function TanarFeladatSzerkesztoPage() {
   const { id } = useParams();
   const [search] = useSearchParams();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { user } = useAuth();
   const szerkesztes = Boolean(id);
   const hydratedRef = useRef(false);
@@ -36,7 +37,8 @@ export function TanarFeladatSzerkesztoPage() {
   const lockTantargyId = search.get("lockTantargyId") ?? "";
   const lockTemakorId = search.get("lockTemakorId") ?? "";
   const tesztbol = Boolean(returnTo && id);
-  const visszaUrl = returnTo ?? "/tanar/feladatok";
+  const feladatokListaUrl = pathname.startsWith("/admin") ? "/admin/feladatok" : "/tanar/feladatok";
+  const visszaUrl = returnTo ?? feladatokListaUrl;
   const hasUrlSzuro = Boolean(
     search.get("agazatId") || search.get("tantargyId") || search.get("temakorId"),
   );
@@ -58,6 +60,7 @@ export function TanarFeladatSzerkesztoPage() {
         evfolyamId: string;
         agazatId: string;
         tantargyId: string;
+        archivalt: boolean;
         valaszok: { szoveg: string; jo: boolean }[];
       };
     }>(`/api/kerdesek/${id}`);
@@ -70,6 +73,7 @@ export function TanarFeladatSzerkesztoPage() {
   const [mezoHibak, setMezoHibak] = useState<FeladatMezoHibak | null>(null);
   const [pending, setPending] = useState(false);
   const [draftVisszaallitva, setDraftVisszaallitva] = useState(false);
+  const [archivalt, setArchivalt] = useState(false);
 
   function applyDraft(draft: ReturnType<typeof loadFeladatDraft>) {
     if (!draft) return;
@@ -92,6 +96,7 @@ export function TanarFeladatSzerkesztoPage() {
   }
 
   function applyKerdes(k: NonNullable<typeof existing.data>["kerdes"]) {
+    setArchivalt(k.archivalt);
     szuro.hydrate({
       evfolyamId: k.evfolyamId,
       agazatId: lockAgazatId || k.agazatId,
@@ -260,7 +265,14 @@ export function TanarFeladatSzerkesztoPage() {
       ) : null}
       <ErrorText error={existing.error} />
 
-      <form onSubmit={onSubmit} noValidate className="space-y-6 rounded-xl border border-rule bg-white p-5">
+      {archivalt ? (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Archivált feladat — szerkesztéshez aktiváld a listában.
+        </p>
+      ) : null}
+
+      <form onSubmit={onSubmit} noValidate autoComplete="off" className="space-y-6 rounded-xl border border-rule bg-white p-5">
+        <fieldset disabled={archivalt} className="space-y-6 disabled:opacity-60">
         <BankSzuro
           kotelezo
           evfolyamKotelezo
@@ -273,7 +285,7 @@ export function TanarFeladatSzerkesztoPage() {
           agazatId={szuro.agazatId}
           tantargyId={szuro.tantargyId}
           temakorId={szuro.temakorId}
-          evfolyamok={szuro.evfolyamok.map((e) => ({ id: e.evfolyamId, nev: `${e.evfolyamErtek}. évfolyam` }))}
+          evfolyamok={evfolyamOpcioi(szuro.evfolyamok)}
           agazatok={szuro.agazatok.map((a) => ({ id: a.agazatId, nev: a.agazatNev }))}
           tantargyak={szuro.tantargyak.map((t) => ({ id: t.tantargyId, nev: t.tantargyNev }))}
           temakorok={szuro.temakorok.map((t) => ({ id: t.temakorId, nev: t.temakorNev }))}
@@ -350,13 +362,14 @@ export function TanarFeladatSzerkesztoPage() {
 
         <ErrorText error={error} />
         <div className="flex gap-2">
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || archivalt}>
             {pending ? "Mentés..." : "Mentés"}
           </Button>
           <Button type="button" variant="ghost" onClick={() => navigate(visszaUrl)}>
             Mégse
           </Button>
         </div>
+        </fieldset>
       </form>
     </div>
   );

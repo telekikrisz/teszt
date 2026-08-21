@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { BrandMark } from "../components/BrandMark";
-import { Button, ErrorText, Field, Input } from "../components/ui";
+import { Button, ErrorText, Field, Input, PasswordInput } from "../components/ui";
 import { api, homeFor, type PublicUser } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -22,7 +22,7 @@ export function LoginPage() {
     try {
       const data = await api.post<{ user: PublicUser }>("/api/auth/login", { email, password });
       await refresh();
-      navigate(homeFor(data.user));
+      navigate(homeFor(data.user), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Belépés sikertelen."));
     } finally {
@@ -65,8 +65,7 @@ export function LoginPage() {
               />
             </Field>
             <Field label="Jelszó">
-              <Input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { env, isProduction } from "../env.js";
 import { db } from "../db/index.js";
-import { felhasznalo, munkamenet, type Felhasznalo } from "../db/schema.js";
+import { agazat, felhasznalo, munkamenet, type Felhasznalo } from "../db/schema.js";
 import { generateSessionToken, hashToken, utcNow } from "./crypto.js";
 
 export const SESSION_COOKIE = "oktateszt_sid";
@@ -15,9 +15,11 @@ export type PublicUser = {
   jogosultsag: Felhasznalo["jogosultsag"];
   osztaly: string | null;
   agazatId: string | null;
+  agazatNev: string | null;
+  jelszoValtastKer: boolean;
 };
 
-export function toPublicUser(user: Felhasznalo): PublicUser {
+export function toPublicUser(user: Felhasznalo, agazatNev: string | null = null): PublicUser {
   return {
     id: user.felhasznaloId,
     email: user.email,
@@ -25,7 +27,23 @@ export function toPublicUser(user: Felhasznalo): PublicUser {
     jogosultsag: user.jogosultsag,
     osztaly: user.osztaly,
     agazatId: user.agazatId,
+    agazatNev,
+    jelszoValtastKer: user.jelszoValtastKer,
   };
+}
+
+export async function loadPublicUser(felhasznaloId: string): Promise<PublicUser | null> {
+  const [row] = await db
+    .select({
+      user: felhasznalo,
+      agazatNev: agazat.agazatNev,
+    })
+    .from(felhasznalo)
+    .leftJoin(agazat, eq(felhasznalo.agazatId, agazat.agazatId))
+    .where(eq(felhasznalo.felhasznaloId, felhasznaloId))
+    .limit(1);
+  if (!row) return null;
+  return toPublicUser(row.user, row.agazatNev);
 }
 
 export async function createSession(c: Context, felhasznaloId: string): Promise<void> {
@@ -67,9 +85,11 @@ export async function resolveSessionUser(c: Context): Promise<PublicUser | null>
       munkamenetId: munkamenet.munkamenetId,
       lejarAt: munkamenet.lejarAt,
       user: felhasznalo,
+      agazatNev: agazat.agazatNev,
     })
     .from(munkamenet)
     .innerJoin(felhasznalo, eq(munkamenet.felhasznaloId, felhasznalo.felhasznaloId))
+    .leftJoin(agazat, eq(felhasznalo.agazatId, agazat.agazatId))
     .where(eq(munkamenet.tokenHash, tokenHash))
     .limit(1);
 
@@ -84,5 +104,5 @@ export async function resolveSessionUser(c: Context): Promise<PublicUser | null>
   if (row.user.archivaltAt) return null;
 
   c.set("sessionId", row.munkamenetId);
-  return toPublicUser(row.user);
+  return toPublicUser(row.user, row.agazatNev);
 }

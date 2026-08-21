@@ -1,12 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq, exists, ilike, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, exists, ilike, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { createKerdesSchema, kerdesSzuroSchema, updateKerdesSchema } from "@oktateszt/shared";
+import { bulkKerdesTorlesSchema, createKerdesSchema, kerdesSzuroSchema, updateKerdesSchema } from "@oktateszt/shared";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { agazat, kerdes, tantargy, temakor, valasz, evfolyam } from "../db/schema.js";
+import { agazat, kerdes, tantargy, temakor, tesztkerdes, valasz, evfolyam } from "../db/schema.js";
 import { assertEvfolyamId } from "./evfolyamok.js";
-import { NotFoundError, ValidationAppError } from "../lib/errors.js";
+import { AppError, NotFoundError, ValidationAppError } from "../lib/errors.js";
 import { assertAktivTemakor, assertKerdesKorlatok } from "../lib/bank.js";
 import { requireStaff } from "../middleware/requireAuth.js";
 import type { AppEnv } from "../types.js";
@@ -161,14 +161,39 @@ export const kerdesRoutes = new Hono<AppEnv>()
     if (!restored) throw new NotFoundError("Archivált kérdés nem található.");
     return c.json({ kerdes: await loadKerdes(id) });
   })
+  .post("/torles", zValidator("json", bulkKerdesTorlesSchema), async (c) => {
+    const { ids } = c.req.valid("json");
+    const uniqueIds = [...new Set(ids)];
+
+    const archived = await db
+      .select({ id: kerdes.kerdesId })
+      .from(kerdes)
+      .where(and(inArray(kerdes.kerdesId, uniqueIds), isNotNull(kerdes.archivaltAt)));
+
+    const torolhetoIds = archived.map((r) => r.id);
+    if (torolhetoIds.length === 0) {
+      throw new AppError(400, "Csak archivált feladat törölhető.", "NOT_ARCHIVED");
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(tesztkerdes).where(inArray(tesztkerdes.kerdesId, torolhetoIds));
+      await tx.delete(kerdes).where(inArray(kerdes.kerdesId, torolhetoIds));
+    });
+
+    return c.json({
+      ok: true,
+      torolt: torolhetoIds.length,
+      kihagyott: uniqueIds.length - torolhetoIds.length,
+    });
+  })
   .delete("/:id", async (c) => {
     const id = c.req.param("id");
     const [archived] = await db
       .update(kerdes)
       .set({ archivaltAt: new Date() })
-      .where(eq(kerdes.kerdesId, id))
+      .where(and(eq(kerdes.kerdesId, id), isNull(kerdes.archivaltAt)))
       .returning();
-    if (!archived) throw new NotFoundError("A kérdés nem található.");
+    if (!archived) throw new NotFoundError("A kérdés nem található vagy már archivált.");
     return c.json({ ok: true });
   });
 

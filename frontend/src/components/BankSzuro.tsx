@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Button, Field, WrapSelect } from "./ui";
 import { UjTemakorModal } from "./UjTemakorModal";
+import { TemakorTorlesModal } from "./TemakorTorlesModal";
 
 type Opt = { id: string; nev: string };
 
@@ -26,6 +27,7 @@ export function BankSzuro({
   zaroltTantargy = false,
   zaroltTemakor = false,
   evfolyamKotelezo = false,
+  agazatRejtett = false,
   agazatAlatti,
 }: {
   evfolyamId: string;
@@ -49,11 +51,13 @@ export function BankSzuro({
   zaroltTantargy?: boolean;
   zaroltTemakor?: boolean;
   evfolyamKotelezo?: boolean;
+  agazatRejtett?: boolean;
   agazatAlatti?: ReactNode;
 }) {
   const [temakorOpen, setTemakorOpen] = useState(false);
+  const [temakorTorlesOpen, setTemakorTorlesOpen] = useState(false);
 
-  const evfolyamPlaceholder = evfolyamKotelezo ? "Válassz évfolyamot" : "Mind";
+  const evfolyamPlaceholder = evfolyamKotelezo ? "Válassz" : "Mind";
   const agazatPlaceholder = kotelezo ? "Válassz ágazatot" : "Minden ágazat";
   const tantargyPlaceholder = !agazatId
     ? "Előbb válassz ágazatot"
@@ -64,7 +68,13 @@ export function BankSzuro({
 
   return (
     <>
-      <div className="mb-4 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className={`mb-4 grid min-w-0 gap-3 sm:grid-cols-2 ${
+          agazatRejtett
+            ? "lg:grid-cols-[minmax(4.5rem,0.55fr)_repeat(2,minmax(0,1fr))]"
+            : "lg:grid-cols-[minmax(4.5rem,0.55fr)_repeat(3,minmax(0,1fr))]"
+        }`}
+      >
         <Field label="Évfolyam">
           <WrapSelect
             value={evfolyamId}
@@ -74,17 +84,19 @@ export function BankSzuro({
             options={evfolyamok.map((e) => ({ value: e.id, label: e.nev }))}
           />
         </Field>
-        <Field label="Ágazat">
-          <WrapSelect
-            value={agazatId}
-            onChange={onAgazat}
-            required={kotelezo}
-            disabled={zaroltAgazat}
-            placeholder={agazatPlaceholder}
-            options={agazatok.map((a) => ({ value: a.id, label: a.nev }))}
-          />
-          {agazatAlatti}
-        </Field>
+        {!agazatRejtett ? (
+          <Field label="Ágazat">
+            <WrapSelect
+              value={agazatId}
+              onChange={onAgazat}
+              required={kotelezo}
+              disabled={zaroltAgazat}
+              placeholder={agazatPlaceholder}
+              options={agazatok.map((a) => ({ value: a.id, label: a.nev }))}
+            />
+            {agazatAlatti}
+          </Field>
+        ) : null}
         <Field label="Tantárgy">
           <WrapSelect
             value={tantargyId}
@@ -105,21 +117,45 @@ export function BankSzuro({
             options={temakorok.map((t) => ({ value: t.id, label: t.nev }))}
           />
           {ujTemakor ? (
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={!tantargyId}
-              className="mt-2 w-full sm:w-auto"
-              onClick={() => {
-                onTemakorModalOpen?.();
-                setTemakorOpen(true);
-              }}
-            >
-              Új témakör
-            </Button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!tantargyId}
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  onTemakorModalOpen?.();
+                  setTemakorOpen(true);
+                }}
+              >
+                Új témakör
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!tantargyId}
+                className="w-full sm:w-auto"
+                onClick={() => setTemakorTorlesOpen(true)}
+              >
+                Témakör törlése
+              </Button>
+            </div>
           ) : null}
         </Field>
       </div>
+
+      {ujTemakor && temakorTorlesOpen ? (
+        <TemakorTorlesModal
+          tantargyId={tantargyId}
+          kivalasztottTemakorId={temakorId}
+          onClose={() => setTemakorTorlesOpen(false)}
+          onDeleted={async (toroltId) => {
+            setTemakorTorlesOpen(false);
+            await onTemakorReload?.();
+            if (temakorId === toroltId) onTemakor("");
+          }}
+        />
+      ) : null}
 
       {ujTemakor && temakorOpen ? (
         <UjTemakorModal

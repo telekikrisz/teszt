@@ -27,6 +27,19 @@ export const KITOLTES_ALLAPOT_LABELS: Record<KitoltesAllapot, string> = {
   lejart: "Lejárt",
 };
 
+export const VIZSGA_ALLAPOTOK = ["kiirt", "felfuggesztett", "lezart"] as const;
+export type VizsgaAllapot = (typeof VIZSGA_ALLAPOTOK)[number];
+
+export const VIZSGA_ALLAPOT_LABELS: Record<VizsgaAllapot, string> = {
+  kiirt: "Kiírt",
+  felfuggesztett: "Felfüggesztett",
+  lezart: "Lezárt",
+};
+
+/** Aktív tárhely: kiírt + felfüggesztett. Archivált: lezárt. */
+export const VIZSGA_AKTIV_ALLAPOTOK = ["kiirt", "felfuggesztett"] as const satisfies readonly VizsgaAllapot[];
+export const VIZSGA_ARCHIV_ALLAPOTOK = ["lezart"] as const satisfies readonly VizsgaAllapot[];
+
 export function isStaffJogosultsag(j: Jogosultsag): j is StaffJogosultsag {
   return j === "admin" || j === "tanar";
 }

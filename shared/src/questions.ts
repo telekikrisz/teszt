@@ -45,7 +45,8 @@ export const updateKerdesSchema = createKerdesSchema;
 export const kerdesSzuroSchema = z.object({
   q: z.string().trim().max(200).optional(),
   evfolyamId: z.string().uuid().optional(),
-  agazatId: z.string().uuid().optional(),  tantargyId: z.string().uuid().optional(),
+  agazatId: z.string().uuid().optional(),
+  tantargyId: z.string().uuid().optional(),
   temakorId: z.string().uuid().optional(),
   valaszokban: z
     .string()
@@ -54,10 +55,16 @@ export const kerdesSzuroSchema = z.object({
   aktiv: alapTrueBoolQuery,
   archivalt: alapFalseBoolQuery,
 });
+
+export const bulkKerdesTorlesSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1, "Legalább egy feladatot ki kell jelölni.").max(500),
+});
+
 export type ValaszInput = z.infer<typeof valaszInputSchema>;
 export type CreateKerdesInput = z.infer<typeof createKerdesSchema>;
 export type UpdateKerdesInput = z.infer<typeof updateKerdesSchema>;
 export type KerdesSzuro = z.infer<typeof kerdesSzuroSchema>;
+export type BulkKerdesTorlesInput = z.infer<typeof bulkKerdesTorlesSchema>;
 
 /** Kitöltésnél a kérdés szövege után zárójelben: „(1 jó válasz)” / „(2 jó válasz)”. */
 export function joValaszFelirat(joDb: number): string {

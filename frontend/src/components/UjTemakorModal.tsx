@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { api } from "../lib/api";
 import { Button, ErrorText, Field, Input, Modal } from "./ui";
 
@@ -11,6 +12,8 @@ export function UjTemakorModal({
   onClose: () => void;
   onSaved: (temakorId: string) => Promise<void>;
 }) {
+  const { pathname } = useLocation();
+  const modalTheme = pathname.startsWith("/admin") ? "admin" : "tanar";
   const [nev, setNev] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
@@ -33,7 +36,7 @@ export function UjTemakorModal({
   }
 
   return (
-    <Modal title="Új témakör" theme="tanar" onClose={onClose}>
+    <Modal title="Új témakör" theme={modalTheme} onClose={onClose}>
       <div className="space-y-4">
         <Field label="Megnevezés">
           <Input

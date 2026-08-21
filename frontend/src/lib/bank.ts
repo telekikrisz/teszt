@@ -3,6 +3,14 @@ import { api } from "./api";
 import { useApi } from "./useApi";
 
 export type Evfolyam = { evfolyamId: string; evfolyamErtek: number };
+
+export function evfolyamFelirat(ertek: number) {
+  return `${ertek}.`;
+}
+
+export function evfolyamOpcioi(lista: Evfolyam[]) {
+  return lista.map((e) => ({ id: e.evfolyamId, nev: evfolyamFelirat(e.evfolyamErtek) }));
+}
 export type Agazat = { agazatId: string; agazatNev: string };
 export type Tantargy = { tantargyId: string; tantargyNev: string; agazatId: string };
 export type Temakor = { temakorId: string; temakorNev: string; tantargyId: string };

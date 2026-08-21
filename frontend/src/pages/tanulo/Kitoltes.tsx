@@ -1,15 +1,24 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { KerdesCim } from "../../components/KerdesCim";
 import { Button, ErrorText, PageHeader } from "../../components/ui";
-import { api } from "../../lib/api";
+import { api, formatPercent } from "../../lib/api";
+
+type KitoltesValasz = {
+  vizsgaValaszId: string;
+  szoveg: string;
+  kijelolt?: boolean;
+  jo?: boolean;
+  helyesValasztas?: boolean;
+};
 
 type KitoltesKerdes = {
   vizsgaKerdesId: string;
   index: number;
   szoveg: string;
+  pontszam: number;
   joValaszDb: number;
-  valaszok: { vizsgaValaszId: string; szoveg: string }[];
+  valaszok: KitoltesValasz[];
   kijeloltValaszIds: string[];
 };
 
@@ -17,26 +26,122 @@ type KitoltesPayload = {
   kitoltesId: string;
   allapot: string;
   vizsgaCim: string;
+  vizsgaAllapot: string;
+  nezettMod: "kitoltes" | "eredmeny" | "attekintes";
+  visszanezheto: boolean;
+  perc: number;
+  hosszabbitasPerc?: number;
+  vegeAt: string | null;
+  hatralevoMp: number;
+  osszPont: number | null;
+  maxPont: number | null;
+  szazalek: number | null;
   kerdesek: KitoltesKerdes[];
 };
 
+function formatIdo(mp: number) {
+  const m = Math.floor(mp / 60);
+  const s = mp % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function EredmenyPanel({
+  kitoltes,
+  onVissza,
+}: {
+  kitoltes: KitoltesPayload;
+  onVissza: () => void;
+}) {
+  const varakozas = kitoltes.vizsgaAllapot === "kiirt";
+
+  return (
+    <div className="mx-auto max-w-lg rounded-xl border border-rule bg-white p-8 text-center shadow-sm">
+      <p className="text-xs uppercase tracking-wide text-clay">Eredmény</p>
+      <h2 className="mt-2 font-display text-2xl font-semibold text-navy">{kitoltes.vizsgaCim}</h2>
+      {kitoltes.szazalek !== null ? (
+        <p className="mt-6 font-display text-5xl font-bold text-navy">{formatPercent(kitoltes.szazalek)}</p>
+      ) : null}
+      {kitoltes.osszPont !== null && kitoltes.maxPont !== null ? (
+        <p className="mt-2 text-sm text-ink/70">
+          {kitoltes.osszPont} / {kitoltes.maxPont} pont
+        </p>
+      ) : null}
+      <p className="mt-4 text-sm text-ink/60">
+        {kitoltes.allapot === "lejart"
+          ? "Az idő lejárt — a válaszaid automatikusan mentésre kerültek."
+          : "A vizsgát beküldted."}
+      </p>
+      {varakozas ? (
+        <p className="mt-2 text-sm text-ink/60">
+          A feladatok áttekintése akkor érhető el, amikor minden tanuló befejezte a vizsgát.
+        </p>
+      ) : null}
+      <Button className="mt-8" onClick={onVissza}>
+        {varakozas ? "Vissza a vizsgákhoz" : "Vissza az eredményekhez"}
+      </Button>
+    </div>
+  );
+}
+
 export function TanuloKitoltesPage() {
   const { kitoltesId } = useParams();
+  const navigate = useNavigate();
   const [kitoltes, setKitoltes] = useState<KitoltesPayload | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [current, setCurrent] = useState(0);
   const [pending, setPending] = useState(false);
+  const [bekuldesPending, setBekuldesPending] = useState(false);
+  const [hatralevoMp, setHatralevoMp] = useState<number | null>(null);
+  const [vegeAtMs, setVegeAtMs] = useState<number | null>(null);
+  const bekuldesInditva = useRef(false);
+
+  function alkalmazIdo(payload: KitoltesPayload) {
+    if (payload.nezettMod !== "kitoltes") {
+      setVegeAtMs(null);
+      setHatralevoMp(null);
+      return;
+    }
+    const nextVege = payload.vegeAt
+      ? new Date(payload.vegeAt).getTime()
+      : Date.now() + payload.hatralevoMp * 1000;
+    setVegeAtMs(nextVege);
+    setHatralevoMp(payload.hatralevoMp);
+  }
+
+  async function betolt() {
+    if (!kitoltesId) return null;
+    const data = await api.get<{ kitoltes: KitoltesPayload }>(`/api/kitoltes/${kitoltesId}`);
+    setKitoltes(data.kitoltes);
+    alkalmazIdo(data.kitoltes);
+    return data.kitoltes;
+  }
 
   useEffect(() => {
     if (!kitoltesId) return;
-    void api
-      .get<{ kitoltes: KitoltesPayload }>(`/api/kitoltes/${kitoltesId}`)
-      .then((data) => setKitoltes(data.kitoltes))
-      .catch(setError);
+    void betolt().catch(setError);
   }, [kitoltesId]);
 
+  // Óra: helyi countdown a szerveres vegeAt alapján.
+  // Új vegeAt csak API-válaszkor jön (válasz mentés / beadás / betöltés) — nincs folyamatos figyelés.
+  useEffect(() => {
+    if (vegeAtMs === null || kitoltes?.nezettMod !== "kitoltes") return;
+
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((vegeAtMs - Date.now()) / 1000));
+      setHatralevoMp(left);
+      if (left <= 0 && !bekuldesInditva.current) {
+        bekuldesInditva.current = true;
+        void bekuldes(true);
+      }
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [vegeAtMs, kitoltes?.nezettMod]);
+
   async function valaszt(kerdes: KitoltesKerdes, vizsgaValaszId: string) {
-    if (!kitoltes || kitoltes.allapot !== "folyamatban" || pending) return;
+    if (!kitoltes || kitoltes.nezettMod !== "kitoltes" || pending) return;
 
     const marKijelolt = kerdes.kijeloltValaszIds.includes(vizsgaValaszId);
     const kijelolt = kerdes.joValaszDb === 1 ? true : !marKijelolt;
@@ -49,6 +154,7 @@ export function TanuloKitoltesPage() {
         kijelolt,
       });
       setKitoltes(data.kitoltes);
+      alkalmazIdo(data.kitoltes);
       setError(null);
     } catch (err) {
       setError(err);
@@ -57,38 +163,126 @@ export function TanuloKitoltesPage() {
     }
   }
 
+  async function bekuldes(auto = false) {
+    if (!kitoltes || kitoltes.nezettMod !== "kitoltes" || bekuldesPending) return;
+
+    if (!auto) {
+      const valaszolatlan = kitoltes.kerdesek.filter((k) => k.kijeloltValaszIds.length === 0);
+      if (valaszolatlan.length > 0) {
+        const szamok = valaszolatlan.map((k) => k.index).join(", ");
+        if (!window.confirm(`A következő kérdésekre nem válaszoltál: ${szamok}. Biztosan beadod?`)) return;
+      }
+    }
+
+    setBekuldesPending(true);
+    try {
+      const data = await api.post<{ kitoltes: KitoltesPayload }>(`/api/kitoltes/${kitoltes.kitoltesId}/bekuldes`);
+      setKitoltes(data.kitoltes);
+      setHatralevoMp(null);
+      setVegeAtMs(null);
+      setError(null);
+    } catch (err) {
+      setError(err);
+      bekuldesInditva.current = false;
+    } finally {
+      setBekuldesPending(false);
+    }
+  }
+
+  function visszaNavigacio() {
+    if (kitoltes?.vizsgaAllapot === "lezart") {
+      navigate("/tanulo/eredmenyek");
+    } else {
+      navigate("/tanulo/vizsgak");
+    }
+  }
+
   if (error && !kitoltes) return <ErrorText error={error} />;
   if (!kitoltes) return <p className="text-sm text-ink/60">A vizsga betöltése...</p>;
 
+  if (kitoltes.nezettMod === "eredmeny") {
+    return (
+      <div>
+        <PageHeader title={kitoltes.vizsgaCim} />
+        <ErrorText error={error} />
+        <EredmenyPanel kitoltes={kitoltes} onVissza={visszaNavigacio} />
+      </div>
+    );
+  }
+
   const kerdes = kitoltes.kerdesek[current];
   const valaszoltDb = kitoltes.kerdesek.filter((k) => k.kijeloltValaszIds.length > 0).length;
-  const modosithato = kitoltes.allapot === "folyamatban";
+  const modosithato = kitoltes.nezettMod === "kitoltes";
+  const attekintes = kitoltes.nezettMod === "attekintes";
+  const idoMp = hatralevoMp ?? kitoltes.hatralevoMp;
+  const utolsoKerdes = current >= kitoltes.kerdesek.length - 1;
 
   return (
     <div>
-      <PageHeader
-        title={kitoltes.vizsgaCim}
-        subtitle={`${valaszoltDb}/${kitoltes.kerdesek.length} kérdés megválaszolva`}
-      />
+      {!attekintes ? (
+        <div className="relative mb-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-rule pb-3">
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-xl text-navy sm:text-2xl">{kitoltes.vizsgaCim}</h1>
+            <p className="text-xs text-ink/60">
+              {valaszoltDb}/{kitoltes.kerdesek.length} kérdés megválaszolva
+            </p>
+          </div>
+          <div className="flex flex-col items-center px-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-ink/45">Hátralévő idő</span>
+            <span
+              className={`font-display font-bold tabular-nums leading-none ${
+                idoMp <= 60 ? "text-red-700" : "text-navy"
+              }`}
+              style={{ fontSize: "clamp(1.75rem, 5vw, 3.25rem)" }}
+            >
+              {formatIdo(idoMp)}
+            </span>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="secondary" disabled={bekuldesPending} onClick={() => void bekuldes()}>
+              {bekuldesPending ? "Beadás..." : "Beadás"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <PageHeader
+          title={kitoltes.vizsgaCim}
+          subtitle={`${formatPercent(kitoltes.szazalek ?? 0)} · ${kitoltes.osszPont ?? 0}/${kitoltes.maxPont ?? 0} pont · áttekintés`}
+          actions={
+            <Button variant="ghost" onClick={visszaNavigacio}>
+              Vissza
+            </Button>
+          }
+        />
+      )}
       <ErrorText error={error} />
 
-      <div className="mb-4 flex flex-wrap gap-1">
-        {kitoltes.kerdesek.map((k, idx) => (
-          <button
-            key={k.vizsgaKerdesId}
-            type="button"
-            onClick={() => setCurrent(idx)}
-            className={`h-8 w-8 rounded-md text-xs font-semibold ${
-              idx === current
-                ? "bg-clay text-white"
-                : k.kijeloltValaszIds.length > 0
-                  ? "bg-moss/20 text-moss"
-                  : "bg-white border border-rule"
-            }`}
-          >
-            {idx + 1}
-          </button>
-        ))}
+      <div className="mb-3 flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+          {kitoltes.kerdesek.map((k, idx) => (
+            <button
+              key={k.vizsgaKerdesId}
+              type="button"
+              onClick={() => setCurrent(idx)}
+              className={`h-8 w-8 shrink-0 rounded-md text-xs font-semibold ${
+                idx === current
+                  ? "bg-clay text-white"
+                  : k.kijeloltValaszIds.length > 0
+                    ? "bg-moss/20 text-moss"
+                    : "border border-rule bg-white"
+              }`}
+            >
+              {idx + 1}
+            </button>
+          ))}
+        </div>
+        {kerdes ? (
+          <div className="shrink-0 text-right">
+            <div className="font-display text-lg font-semibold tabular-nums leading-none text-navy">
+              {kerdes.pontszam} pont
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {kerdes ? (
@@ -96,21 +290,26 @@ export function TanuloKitoltesPage() {
           <div className="text-xs uppercase tracking-wide text-clay">{kerdes.index}. kérdés</div>
           <KerdesCim
             szoveg={kerdes.szoveg}
-            joValaszDb={kerdes.joValaszDb}
+            joValaszDb={attekintes ? 0 : kerdes.joValaszDb}
             className="mt-2 font-display text-xl text-navy"
           />
           <div className="mt-4 space-y-2">
             {kerdes.valaszok.map((valasz, idx) => {
               const kijelolt = kerdes.kijeloltValaszIds.includes(valasz.vizsgaValaszId);
+              let border = kijelolt ? "border-clay bg-clay/10" : "border-rule";
+              if (attekintes) {
+                if (valasz.helyesValasztas) border = "border-moss bg-moss/10";
+                else if (kijelolt && !valasz.helyesValasztas) border = "border-red-300 bg-red-50";
+                else if (valasz.jo) border = "border-moss/40 bg-moss/5";
+              }
+
               return (
                 <button
                   key={valasz.vizsgaValaszId}
                   type="button"
                   disabled={!modosithato || pending}
                   onClick={() => void valaszt(kerdes, valasz.vizsgaValaszId)}
-                  className={`block w-full rounded-lg border px-4 py-3 text-left ${
-                    kijelolt ? "border-clay bg-clay/10" : "border-rule hover:border-navy"
-                  } disabled:opacity-60`}
+                  className={`block w-full rounded-lg border px-4 py-3 text-left ${border} disabled:opacity-60`}
                 >
                   <span className="mr-2 font-semibold">{String.fromCharCode(65 + idx)}.</span>
                   {valasz.szoveg}
@@ -125,11 +324,13 @@ export function TanuloKitoltesPage() {
         <Button variant="ghost" disabled={current === 0} onClick={() => setCurrent((c) => c - 1)}>
           Előző
         </Button>
-        {current < kitoltes.kerdesek.length - 1 ? (
+        {!utolsoKerdes ? (
           <Button variant="secondary" onClick={() => setCurrent((c) => c + 1)}>
             Következő
           </Button>
-        ) : null}
+        ) : (
+          <span className="self-center text-sm text-ink/50">Utolsó feladat — beadáshoz használd a felső gombot.</span>
+        )}
       </div>
     </div>
   );

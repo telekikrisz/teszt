@@ -55,16 +55,22 @@ export function AllapotJeloloSzuro({
   return (
     <div className={compact ? "space-y-1" : "mb-4 space-y-2"}>
       {cim ? <div className="text-xs font-semibold uppercase tracking-wide text-navy/70">{cim}</div> : null}
-      <div className={`flex flex-wrap items-start ${compact ? "gap-x-3 gap-y-1" : "gap-x-5 gap-y-2"}`}>
+      <div
+        className={`flex flex-wrap items-stretch ${compact ? "gap-x-3 gap-y-1" : "gap-3 sm:gap-4"}`}
+      >
         {csoportLista.map((csoport, index) => (
-          <div key={csoport.cim ?? index} className="flex items-start gap-5">
-            {index > 0 ? <div className="hidden h-full min-h-8 w-px self-stretch bg-rule sm:block" aria-hidden /> : null}
-            <div className="space-y-1">
-              {csoport.cim ? (
-                <div className="text-xs font-semibold uppercase tracking-wide text-navy/70">{csoport.cim}</div>
-              ) : null}
-              <JeloloSor jelolok={csoport.jelolok} compact={compact} />
-            </div>
+          <div
+            key={csoport.cim ?? index}
+            className={
+              compact
+                ? "space-y-1"
+                : "min-w-[min(100%,11rem)] flex-1 space-y-1.5 rounded-lg border border-rule bg-white/70 px-3.5 py-2.5 shadow-sm sm:flex-none sm:min-w-[10.5rem]"
+            }
+          >
+            {csoport.cim ? (
+              <div className="text-xs font-semibold uppercase tracking-wide text-navy/70">{csoport.cim}</div>
+            ) : null}
+            <JeloloSor jelolok={csoport.jelolok} compact={compact} />
           </div>
         ))}
       </div>

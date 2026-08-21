@@ -22,6 +22,27 @@
   --color-sage-border: #d4ddd6;
   --color-forest-text: #e8f0eb;
   --color-ink-forest: #1a2e22;
+
+  /* Tanulói felület paletta — óceán */
+  --color-ocean: #0c4a6e;
+  --color-ocean-2: #082f49;
+  --color-ocean-muted: #0e7490;
+  --color-ocean-active: #38bdf8;
+  --color-seafoam: #f0f9ff;
+  --color-sea-border: #bae6fd;
+  --color-ocean-text: #e0f2fe;
+  --color-ink-ocean: #0f2942;
+
+  /* Admin felület paletta — éjszaka / slate + borostyán */
+  --color-slate: #2a2e35;
+  --color-slate-2: #1a1c20;
+  --color-slate-muted: #5c6570;
+  --color-amber: #c4922a;
+  --color-amber-dark: #8a6418;
+  --color-amber-active: #e0b04a;
+  --color-ash: #f3f1ee;
+  --color-ash-border: #d8d4ce;
+  --color-ink-slate: #1c1f24;
 }
 
 html,
@@ -42,8 +63,34 @@ body,
   --color-ink: var(--color-ink-forest);
 }
 
+/* Tanulói felület: óceán paletta */
+.tanulo-shell {
+  --color-clay: var(--color-ocean-muted);
+  --color-clay-dark: var(--color-ocean-2);
+  --color-navy: var(--color-ocean);
+  --color-navy-deep: var(--color-ocean-2);
+  --color-paper: var(--color-seafoam);
+  --color-paper-2: #e0f2fe;
+  --color-rule: var(--color-sea-border);
+  --color-ink: var(--color-ink-ocean);
+}
+
+/* Admin felület: slate + borostyán (nem zöld, nem kék) */
+.admin-shell {
+  --color-clay: var(--color-amber);
+  --color-clay-dark: var(--color-amber-dark);
+  --color-navy: var(--color-slate);
+  --color-navy-deep: var(--color-slate-2);
+  --color-paper: var(--color-ash);
+  --color-paper-2: #e8e5e0;
+  --color-rule: var(--color-ash-border);
+  --color-ink: var(--color-ink-slate);
+}
+
 /* A görgetősáv mindig foglal helyet — ne ugráljon a layout menüváltáskor. */
-.tanar-scroll {
+.tanar-scroll,
+.tanulo-scroll,
+.admin-scroll {
   overflow-y: auto;
   scrollbar-gutter: stable;
 }

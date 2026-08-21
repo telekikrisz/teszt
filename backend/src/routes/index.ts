@@ -7,6 +7,9 @@ import { kerdesRoutes } from "./kerdesek.js";
 import { kitoltesRoutes } from "./kitoltes.js";
 import { evfolyamRoutes } from "./evfolyamok.js";
 import { tesztRoutes } from "./tesztek.js";
+import { tanuloVizsgaRoutes } from "./tanuloVizsgak.js";
+import { tanuloEredmenyRoutes } from "./tanuloEredmenyek.js";
+import { vizsgaRoutes } from "./vizsgak.js";
 import type { AppEnv } from "../types.js";
 
 export const api = new Hono<AppEnv>()
@@ -18,4 +21,7 @@ export const api = new Hono<AppEnv>()
   .route("/evfolyamok", evfolyamRoutes)
   .route("/kerdesek", kerdesRoutes)
   .route("/tesztek", tesztRoutes)
+  .route("/vizsgak", vizsgaRoutes)
+  .route("/tanulo/vizsgak", tanuloVizsgaRoutes)
+  .route("/tanulo/eredmenyek", tanuloEredmenyRoutes)
   .route("/kitoltes", kitoltesRoutes);

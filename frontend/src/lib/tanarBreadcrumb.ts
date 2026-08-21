@@ -32,7 +32,26 @@ export function useTanarBreadcrumbs(): TanarCrumb[] {
   }
 
   if (pathname.startsWith("/tanar/vizsgak")) {
-    return [{ label: "Tanári felület", to: TANAR_HOME }, { label: "Vizsgák" }];
+    const crumbs: TanarCrumb[] = [{ label: "Tanári felület", to: TANAR_HOME }];
+    if (pathname === "/tanar/vizsgak") {
+      crumbs.push({ label: "Vizsgák" });
+    } else if (pathname === "/tanar/vizsgak/uj") {
+      crumbs.push({ label: "Vizsgák", to: "/tanar/vizsgak" });
+      crumbs.push({ label: "Új vizsga" });
+    } else if (pathname === "/tanar/vizsgak/kiirt") {
+      crumbs.push({ label: "Vizsgák", to: "/tanar/vizsgak" });
+      crumbs.push({ label: "Kiírt" });
+    } else if (pathname === "/tanar/vizsgak/felfuggesztett") {
+      crumbs.push({ label: "Vizsgák", to: "/tanar/vizsgak" });
+      crumbs.push({ label: "Felfüggesztett" });
+    } else if (pathname === "/tanar/vizsgak/lezart") {
+      crumbs.push({ label: "Vizsgák", to: "/tanar/vizsgak" });
+      crumbs.push({ label: "Lezárt" });
+    } else {
+      crumbs.push({ label: "Vizsgák", to: "/tanar/vizsgak" });
+      crumbs.push({ label: "Eredmények" });
+    }
+    return crumbs;
   }
 
   return [{ label: "Tanári felület" }];

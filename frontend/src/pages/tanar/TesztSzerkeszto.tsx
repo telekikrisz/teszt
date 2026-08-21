@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { TESZT_ALLAPOT_LABELS, type TesztAllapot } from "@oktateszt/shared";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BankSzuro } from "../../components/BankSzuro";
 import { Badge, Button, Empty, ErrorText, Field, Input, NumberInput, PageHeader } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useBankSzuro } from "../../lib/bank";
+import { useBankSzuro, evfolyamOpcioi } from "../../lib/bank";
 import { clearTesztDraft, loadTesztDraft, saveTesztDraft, type TesztDraftKerdes } from "../../lib/tesztDraft";
 import { megfelelTesztSzuronek, szuroHely } from "../../lib/tesztFeladatSzuro";
 import { useApi } from "../../lib/useApi";
@@ -30,10 +30,18 @@ export function TanarTesztSzerkesztoPage() {
   const { id } = useParams();
   const [search] = useSearchParams();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { user } = useAuth();
   const szerkesztes = Boolean(id);
   const hydratedRef = useRef(false);
+  const isAdmin = pathname.startsWith("/admin");
+  const tesztekListaUrl = isAdmin ? "/admin/tesztek" : "/tanar/tesztek";
+  const feladatokBase = isAdmin ? "/admin/feladatok" : "/tanar/feladatok";
+  const tesztekBase = tesztekListaUrl;
   const elozoSzuro = useRef({ evfolyamId: "", agazatId: "", tantargyId: "", temakorId: "" });
+  const [szuroKesz, setSzuroKesz] = useState(
+    () => !id && Boolean(search.get("evfolyamId") && search.get("tantargyId")),
+  );
 
   const szuro = useBankSzuro({
     evfolyamId: search.get("evfolyamId") ?? "",
@@ -71,16 +79,27 @@ export function TanarTesztSzerkesztoPage() {
   const [szuroFigyelmeztetes, setSzuroFigyelmeztetes] = useState<string | null>(null);
 
   const kerdesQuery = useMemo(() => {
+    if (!szuroKesz || !szuro.evfolyamId || !szuro.tantargyId) return "";
     const params = new URLSearchParams(szuro.query);
     params.set("aktiv", "true");
     params.set("archivalt", "false");
     if (q) params.set("q", q);
-    const s = params.toString();
-    return `/api/kerdesek?${s}`;
-  }, [szuro.query, q]);
-  const elerheto = useApi(() => api.get<{ kerdesek: KerdesLista[] }>(kerdesQuery), [kerdesQuery]);
+    return `/api/kerdesek?${params.toString()}`;
+  }, [szuroKesz, szuro.query, szuro.evfolyamId, szuro.tantargyId, q]);
+  const elerheto = useApi(async () => {
+    if (!kerdesQuery) return { kerdesek: [] as KerdesLista[] };
+    return api.get<{ kerdesek: KerdesLista[] }>(kerdesQuery);
+  }, [kerdesQuery]);
 
   const kivalasztottIds = useMemo(() => new Set(kivalasztott.map((k) => k.kerdesId)), [kivalasztott]);
+
+  const hozzaadhatok = useMemo(() => {
+    const hely = szuroHely(szuro);
+    return (elerheto.data?.kerdesek ?? [])
+      .filter((k) => !kivalasztottIds.has(k.kerdesId))
+      .filter((k) => megfelelTesztSzuronek(k, hely));
+  }, [elerheto.data?.kerdesek, kivalasztottIds, szuro.evfolyamId, szuro.agazatId, szuro.tantargyId, szuro.temakorId]);
+
   const osszPont = useMemo(() => kivalasztott.reduce((sum, k) => sum + k.pontszam, 0), [kivalasztott]);
   const szerkesztheto = !archivalt;
 
@@ -138,6 +157,51 @@ export function TanarTesztSzerkesztoPage() {
     if (szerkesztes && existing.loading) return;
 
     async function hydrate() {
+      if (szerkesztes && existing.data?.teszt) {
+        const t = existing.data.teszt;
+        const temakorId = t.temakorId ?? "";
+        szuro.hydrate({
+          evfolyamId: t.evfolyamId,
+          agazatId: t.agazatId,
+          tantargyId: t.tantargyId,
+          temakorId,
+        });
+        elozoSzuro.current = {
+          evfolyamId: t.evfolyamId,
+          agazatId: t.agazatId,
+          tantargyId: t.tantargyId,
+          temakorId,
+        };
+        setAllapot(t.allapot);
+        setArchivalt(t.archivalt);
+
+        const draft = loadTesztDraft(user!.id, id);
+        if (draft) {
+          setCim(draft.cim || t.cim);
+          setJavasoltPerc(draft.javasoltPerc || (t.javasoltPerc ? String(t.javasoltPerc) : ""));
+          setQ(draft.q);
+          const alapLista =
+            draft.kivalasztott.length > 0
+              ? draft.kivalasztott
+              : t.kerdesek.map((k, idx) => ({ ...k, sorrend: idx + 1 }));
+          const friss = await frissitKivalasztott(alapLista);
+          setKivalasztott(szuroAlapjan(friss));
+        } else {
+          setCim(t.cim);
+          setJavasoltPerc(t.javasoltPerc ? String(t.javasoltPerc) : "");
+          setKivalasztott(
+            t.kerdesek.map((k, idx) => ({
+              ...k,
+              sorrend: idx + 1,
+            })),
+          );
+        }
+
+        setSzuroKesz(true);
+        hydratedRef.current = true;
+        return;
+      }
+
       const draft = loadTesztDraft(user!.id, id);
       if (draft) {
         szuro.hydrate({
@@ -157,37 +221,12 @@ export function TanarTesztSzerkesztoPage() {
         setQ(draft.q);
         const friss = await frissitKivalasztott(draft.kivalasztott);
         setKivalasztott(szuroAlapjan(friss));
+        setSzuroKesz(true);
         hydratedRef.current = true;
         return;
       }
 
-      if (szerkesztes && existing.data?.teszt) {
-        const t = existing.data.teszt;
-        const temakorId = t.temakorId ?? "";
-        szuro.hydrate({
-          evfolyamId: t.evfolyamId,
-          agazatId: t.agazatId,
-          tantargyId: t.tantargyId,
-          temakorId,
-        });
-        elozoSzuro.current = {
-          evfolyamId: t.evfolyamId,
-          agazatId: t.agazatId,
-          tantargyId: t.tantargyId,
-          temakorId,
-        };
-        setCim(t.cim);
-        setJavasoltPerc(t.javasoltPerc ? String(t.javasoltPerc) : "");
-        setAllapot(t.allapot);
-        setArchivalt(t.archivalt);
-        setKivalasztott(
-          t.kerdesek.map((k, idx) => ({
-            ...k,
-            sorrend: idx + 1,
-          })),
-        );
-      }
-
+      setSzuroKesz(true);
       hydratedRef.current = true;
     }
 
@@ -257,7 +296,7 @@ export function TanarTesztSzerkesztoPage() {
     if (szuro.agazatId) returnParams.set("agazatId", szuro.agazatId);
     if (szuro.tantargyId) returnParams.set("tantargyId", szuro.tantargyId);
     if (szuro.temakorId) returnParams.set("temakorId", szuro.temakorId);
-    const returnBase = id ? `/tanar/tesztek/${id}` : `/tanar/tesztek/uj`;
+    const returnBase = id ? `${tesztekBase}/${id}` : `${tesztekBase}/uj`;
     const returnTo = returnParams.toString() ? `${returnBase}?${returnParams.toString()}` : returnBase;
 
     const params = new URLSearchParams();
@@ -266,7 +305,7 @@ export function TanarTesztSzerkesztoPage() {
     params.set("lockTantargyId", szuro.tantargyId);
     if (szuro.temakorId) params.set("lockTemakorId", szuro.temakorId);
 
-    navigate(`/tanar/feladatok/${kerdesId}?${params.toString()}`);
+    navigate(`${feladatokBase}/${kerdesId}?${params.toString()}`);
   }
 
   async function mentes(mentettAllapot: TesztAllapot) {
@@ -274,7 +313,7 @@ export function TanarTesztSzerkesztoPage() {
     setError(null);
     try {
       if (!szuro.evfolyamId) {
-        throw new Error("Válassz évfolyamot — a teszt mindig egy évfolyamhoz tartozik.");
+        throw new Error("Válassz évfolyamot.");
       }
       if (!szuro.tantargyId) {
         throw new Error("Válassz tantárgyat — a teszt mindig egy tantárgyhoz tartozik.");
@@ -300,43 +339,7 @@ export function TanarTesztSzerkesztoPage() {
         });
       }
       if (user) clearTesztDraft(user.id, id);
-      navigate("/tanar/tesztek");
-    } catch (err) {
-      setError(err);
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function allapotValtas(ujAllapot: TesztAllapot) {
-    if (!id) return;
-    setPending(true);
-    setError(null);
-    try {
-      await api.patch(`/api/tesztek/${id}`, { allapot: ujAllapot });
-      setAllapot(ujAllapot);
-      await existing.reload();
-    } catch (err) {
-      setError(err);
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function archivValtas(aktivalas: boolean) {
-    if (!id) return;
-    if (!aktivalas && !confirm("Archiválod a tesztet? A már kiírt vizsgák snapshotja megmarad.")) return;
-    setPending(true);
-    setError(null);
-    try {
-      if (aktivalas) {
-        await api.post(`/api/tesztek/${id}/aktivalas`);
-        setArchivalt(false);
-      } else {
-        await api.delete(`/api/tesztek/${id}`);
-        setArchivalt(true);
-      }
-      await existing.reload();
+      navigate(tesztekListaUrl);
     } catch (err) {
       setError(err);
     } finally {
@@ -354,7 +357,7 @@ export function TanarTesztSzerkesztoPage() {
       <PageHeader
         title={szerkesztes ? "Teszt szerkesztése" : "Új teszt"}
         actions={
-          <Link to="/tanar/tesztek" className="text-sm text-navy underline">
+          <Link to={tesztekListaUrl} className="text-sm text-navy underline">
             Vissza a listához
           </Link>
         }
@@ -367,30 +370,7 @@ export function TanarTesztSzerkesztoPage() {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Badge tone={archivalt ? "archiv" : "aktiv"}>{archivalt ? "Archív" : "Aktív"}</Badge>
           <Badge tone={allapot === "kesz" ? "good" : "warn"}>{TESZT_ALLAPOT_LABELS[allapot]}</Badge>
-        </div>
-      ) : null}
-
-      {szerkesztes && id && !existing.loading ? (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {archivalt ? (
-            <Button type="button" variant="ghost" disabled={pending} onClick={() => void archivValtas(true)}>
-              Aktiválás
-            </Button>
-          ) : (
-            <Button type="button" variant="danger" disabled={pending} onClick={() => void archivValtas(false)}>
-              Archiválás
-            </Button>
-          )}
-          {!archivalt && allapot === "piszkozat" ? (
-            <Button type="button" variant="ghost" disabled={pending} onClick={() => void allapotValtas("kesz")}>
-              Jóváhagyás
-            </Button>
-          ) : null}
-          {!archivalt && allapot === "kesz" ? (
-            <Button type="button" variant="ghost" disabled={pending} onClick={() => void allapotValtas("piszkozat")}>
-              Piszkozatra vissza
-            </Button>
-          ) : null}
+          {szuro.tantargyId && !szuro.temakorId ? <Badge tone="info">Témazáró</Badge> : null}
         </div>
       ) : null}
 
@@ -400,7 +380,7 @@ export function TanarTesztSzerkesztoPage() {
         </p>
       ) : null}
 
-      <form onSubmit={onSubmit} className="space-y-6">
+      <form onSubmit={onSubmit} autoComplete="off" className="space-y-6">
         <fieldset disabled={!szerkesztheto} className="space-y-6 disabled:opacity-60">
         <div className="rounded-xl border border-rule bg-white p-5 space-y-4">
           <Field label="Teszt címe">
@@ -435,7 +415,7 @@ export function TanarTesztSzerkesztoPage() {
             agazatId={szuro.agazatId}
             tantargyId={szuro.tantargyId}
             temakorId={szuro.temakorId}
-            evfolyamok={szuro.evfolyamok.map((e) => ({ id: e.evfolyamId, nev: `${e.evfolyamErtek}. évfolyam` }))}
+            evfolyamok={evfolyamOpcioi(szuro.evfolyamok)}
             agazatok={szuro.agazatok.map((a) => ({ id: a.agazatId, nev: a.agazatNev }))}
             tantargyak={szuro.tantargyak.map((t) => ({ id: t.tantargyId, nev: t.tantargyNev }))}
             temakorok={szuro.temakorok.map((t) => ({ id: t.temakorId, nev: t.temakorNev }))}
@@ -457,21 +437,21 @@ export function TanarTesztSzerkesztoPage() {
           <section className="rounded-xl border border-rule bg-white p-5">
             <h2 className="font-display text-lg text-navy">Hozzáadható feladatok</h2>
             <ErrorText error={elerheto.error} />
-            {elerheto.loading ? <p className="mt-3 text-sm text-ink/60">Betöltés...</p> : null}
-            {!elerheto.loading && (!szuro.evfolyamId || !szuro.tantargyId) ? (
+            {elerheto.loading || (szerkesztes && !szuroKesz) ? (
+              <p className="mt-3 text-sm text-ink/60">Betöltés...</p>
+            ) : null}
+            {!elerheto.loading && szuroKesz && (!szuro.evfolyamId || !szuro.tantargyId) ? (
               <div className="mt-3">
-                <Empty>Válassz évfolyamot és tantárgyat a feladatok listázásához.</Empty>
+                <Empty>Válassz évfolyamot és tantárgyat.</Empty>
               </div>
             ) : null}
-            {!elerheto.loading && szuro.evfolyamId && szuro.tantargyId && (elerheto.data?.kerdesek.length ?? 0) === 0 ? (
+            {!elerheto.loading && szuroKesz && szuro.evfolyamId && szuro.tantargyId && hozzaadhatok.length === 0 ? (
               <div className="mt-3">
                 <Empty>Nincs a szűrésnek megfelelő feladat.</Empty>
               </div>
             ) : null}
             <div className="mt-3 grid gap-2">
-              {elerheto.data?.kerdesek
-                .filter((k) => !kivalasztottIds.has(k.kerdesId))
-                .map((k) => (
+              {hozzaadhatok.map((k) => (
                   <article key={k.kerdesId} className="rounded-lg border border-rule p-3">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge tone="temakor">{k.temakorNev}</Badge>
@@ -549,7 +529,7 @@ export function TanarTesztSzerkesztoPage() {
           >
             {pending ? "Mentés..." : "Jóváhagyott teszt mentése"}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate("/tanar/tesztek")}>
+          <Button type="button" variant="ghost" onClick={() => navigate(tesztekListaUrl)}>
             Mégse
           </Button>
         </div>

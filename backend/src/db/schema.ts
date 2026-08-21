@@ -24,6 +24,7 @@ export const kitoltesAllapotEnum = pgEnum("kitoltes_allapot", [
   "bekuldve",
   "lejart",
 ]);
+export const vizsgaAllapotEnum = pgEnum("vizsga_allapot", ["kiirt", "felfuggesztett", "lezart"]);
 
 const archivaltAt = timestamp("archivalt_at", { withTimezone: true, mode: "date" });
 
@@ -133,6 +134,7 @@ export const felhasznalo = pgTable(
     jogosultsag: jogosultsagEnum("jogosultsag").notNull(),
     osztaly: text("osztaly"),
     agazatId: uuid("agazat_id").references(() => agazat.agazatId, { onDelete: "restrict" }),
+    jelszoValtastKer: boolean("jelszo_valtast_ker").notNull().default(false),
     archivaltAt,
   },
   (table) => [
@@ -235,6 +237,7 @@ export const vizsga = pgTable(
     idoablakEleje: timestamp("idoablak_eleje", { withTimezone: true, mode: "date" }).notNull(),
     idoablakVege: timestamp("idoablak_vege", { withTimezone: true, mode: "date" }).notNull(),
     perc: integer("perc").notNull(),
+    allapot: vizsgaAllapotEnum("allapot").notNull().default("kiirt"),
     letrehozvaAt: timestamp("letrehozva_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
@@ -257,6 +260,7 @@ export const vizsgazik = pgTable(
     tanuloId: uuid("tanulo_id")
       .notNull()
       .references(() => felhasznalo.felhasznaloId, { onDelete: "restrict" }),
+    hosszabbitasPerc: integer("hosszabbitas_perc").notNull().default(0),
   },
   (table) => [
     uniqueIndex("uq_vizsgazik").on(table.vizsgaId, table.tanuloId),

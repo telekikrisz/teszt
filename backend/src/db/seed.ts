@@ -7,6 +7,7 @@
  */
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { generateInitialPassword } from "@oktateszt/shared";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "../lib/password.js";
 import { db, pgClient } from "./index.js";
@@ -37,8 +38,19 @@ const SEED_USERS = [
     jelszo: "Tanulo123!",
     jogosultsag: "tanulo" as const,
     osztaly: "11.C",
-    agazatId: null as string | null,
+    agazatNev: "Informatika",
   },
+];
+
+const SEED_TANULOK = [
+  { email: "szentes.olga@oktateszt.hu", nev: "Szentes Olga", osztaly: "11.A", agazatNev: "Informatika" },
+  { email: "toth.bence@oktateszt.hu", nev: "Tóth Bence", osztaly: "11.B", agazatNev: "Informatika" },
+  { email: "horvath.eszter@oktateszt.hu", nev: "Horváth Eszter", osztaly: "12.A", agazatNev: "Informatika" },
+  { email: "kiss.zita@oktateszt.hu", nev: "Kiss Zita", osztaly: "10.A", agazatNev: "Elektronika" },
+  { email: "molnar.david@oktateszt.hu", nev: "Molnár Dávid", osztaly: "12.B", agazatNev: "Informatika" },
+  { email: "balogh.krisztina@oktateszt.hu", nev: "Balogh Krisztina", osztaly: "13.D", agazatNev: "Informatika" },
+  { email: "fekete.gabor@oktateszt.hu", nev: "Fekete Gábor", osztaly: "13.D", agazatNev: "Informatika" },
+  { email: "nemeth.vivien@oktateszt.hu", nev: "Németh Vivien", osztaly: "13.D", agazatNev: "Informatika" },
 ];
 
 async function upsertAgazat(nev: string) {
@@ -55,7 +67,14 @@ async function upsertAgazat(nev: string) {
 }
 
 async function upsertUser(
-  input: (typeof SEED_USERS)[number] & { agazatId: string | null },
+  input: {
+    email: string;
+    nev: string;
+    jelszo: string;
+    jogosultsag: "admin" | "tanar" | "tanulo";
+    osztaly: string | null;
+    agazatId: string | null;
+  },
 ) {
   const email = input.email.toLowerCase();
   const existing = await db
@@ -131,6 +150,11 @@ export async function seed() {
   const plcProgramozas = await upsertTantargy(elektronika.agazatId, "PLC programozás");
   const elektrotechnika = await upsertTantargy(elektronika.agazatId, "Elektrotechnika");
 
+  const agazatByNev = new Map([
+    ["Informatika", informatika.agazatId],
+    ["Elektronika", elektronika.agazatId],
+  ]);
+
   const credentials: string[] = [
     `Ágazat:   Informatika (${informatika.agazatId})`,
     `Tantárgy: Programozás (${programozas.tantargyId})`,
@@ -146,14 +170,59 @@ export async function seed() {
   ];
 
   for (const u of SEED_USERS) {
-    const agazatId = u.jogosultsag === "tanulo" ? informatika.agazatId : null;
-    await upsertUser({ ...u, agazatId });
+    const agazatId =
+      u.jogosultsag === "tanulo" && "agazatNev" in u
+        ? agazatByNev.get(u.agazatNev as string) ?? informatika.agazatId
+        : null;
+    await upsertUser({
+      email: u.email,
+      nev: u.nev,
+      jelszo: u.jelszo,
+      jogosultsag: u.jogosultsag,
+      osztaly: u.osztaly,
+      agazatId,
+    });
     credentials.push(
       `${u.jogosultsag.toUpperCase()}`,
       `  E-mail:  ${u.email}`,
       `  Jelszó:  ${u.jelszo}`,
       u.osztaly ? `  Osztály: ${u.osztaly}` : "",
-      u.jogosultsag === "tanulo" ? `  Ágazat:  Informatika` : "",
+      u.jogosultsag === "tanulo" && "agazatNev" in u ? `  Ágazat:  ${u.agazatNev}` : "",
+      "",
+    );
+  }
+
+  for (const t of SEED_TANULOK) {
+    const jelszo = generateInitialPassword(t.nev);
+    const agazatId = agazatByNev.get(t.agazatNev) ?? informatika.agazatId;
+    const email = t.email.toLowerCase();
+    const existing = await db
+      .select({ id: felhasznalo.felhasznaloId })
+      .from(felhasznalo)
+      .where(eq(felhasznalo.email, email))
+      .limit(1);
+    if (existing[0]) {
+      await db
+        .update(felhasznalo)
+        .set({ jelszoHash: await hashPassword(jelszo) })
+        .where(eq(felhasznalo.felhasznaloId, existing[0].id));
+    } else {
+      await upsertUser({
+        email: t.email,
+        nev: t.nev,
+        jelszo,
+        jogosultsag: "tanulo",
+        osztaly: t.osztaly,
+        agazatId,
+      });
+    }
+    credentials.push(
+      "TANULO",
+      `  Név:     ${t.nev}`,
+      `  E-mail:  ${t.email}`,
+      `  Jelszó:  ${jelszo}`,
+      `  Osztály: ${t.osztaly}`,
+      `  Ágazat:  ${t.agazatNev}`,
       "",
     );
   }
@@ -164,6 +233,9 @@ export async function seed() {
   console.log(`  Belépési adatok mentve: ${CREDENTIALS_FILE}`);
   for (const u of SEED_USERS) {
     console.log(`  ${u.jogosultsag}: ${u.email} / ${u.jelszo}`);
+  }
+  for (const t of SEED_TANULOK) {
+    console.log(`  tanulo: ${t.email} / ${generateInitialPassword(t.nev)}`);
   }
 }
 

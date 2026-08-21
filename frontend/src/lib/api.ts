@@ -56,12 +56,21 @@ export type PublicUser = {
   jogosultsag: Jogosultsag;
   osztaly: string | null;
   agazatId: string | null;
+  agazatNev: string | null;
+  jelszoValtastKer: boolean;
 };
 
+export function settingsFor(user: PublicUser): string {
+  if (user.jogosultsag === "admin") return "/admin/beallitasok";
+  if (user.jogosultsag === "tanar") return "/tanar/beallitasok";
+  return "/tanulo/beallitasok";
+}
+
 export function homeFor(user: PublicUser): string {
-  if (user.jogosultsag === "admin") return "/admin";
+  if (user.jelszoValtastKer) return settingsFor(user);
+  if (user.jogosultsag === "admin") return "/admin/felhasznalok";
   if (user.jogosultsag === "tanar") return "/tanar/tesztek";
-  return "/tanulo";
+  return "/tanulo/vizsgak";
 }
 
 export function formatDate(value: string | Date | null | undefined): string {

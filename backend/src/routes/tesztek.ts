@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { createTesztSchema, tesztSzuroSchema, updateTesztSchema } from "@oktateszt/shared";
+import { createTesztSchema, bulkTesztTorlesSchema, tesztSzuroSchema, updateTesztSchema } from "@oktateszt/shared";
 import { db } from "../db/index.js";
 import {
   agazat,
@@ -12,9 +12,10 @@ import {
   teszt,
   tesztkerdes,
   valasz,
+  vizsga,
 } from "../db/schema.js";
 import { assertAktivTantargy, assertAktivTemakor } from "../lib/bank.js";
-import { NotFoundError, ValidationAppError } from "../lib/errors.js";
+import { AppError, NotFoundError, ValidationAppError } from "../lib/errors.js";
 import { requireStaff } from "../middleware/requireAuth.js";
 import { assertEvfolyamId } from "./evfolyamok.js";
 import type { AppEnv } from "../types.js";
@@ -179,14 +180,55 @@ export const tesztRoutes = new Hono<AppEnv>()
     if (!restored) throw new NotFoundError("Archivált teszt nem található.");
     return c.json({ teszt: await loadTeszt(id, true) });
   })
+  .post("/torles", zValidator("json", bulkTesztTorlesSchema), async (c) => {
+    const { ids } = c.req.valid("json");
+    const uniqueIds = [...new Set(ids)];
+
+    const archived = await db
+      .select({ id: teszt.tesztId })
+      .from(teszt)
+      .where(and(inArray(teszt.tesztId, uniqueIds), isNotNull(teszt.archivaltAt)));
+
+    const torolhetoIds = archived.map((r) => r.id);
+    if (torolhetoIds.length === 0) {
+      throw new AppError(400, "Csak archivált teszt törölhető.", "NOT_ARCHIVED");
+    }
+
+    const linked = await db
+      .select({ id: vizsga.tesztId })
+      .from(vizsga)
+      .where(inArray(vizsga.tesztId, torolhetoIds));
+    const blocked = new Set(linked.map((r) => r.id));
+    const freeIds = torolhetoIds.filter((id) => !blocked.has(id));
+
+    if (freeIds.length === 0) {
+      throw new AppError(
+        409,
+        "A kijelölt tesztek nem törölhetők, mert van belőlük kiírt vizsga.",
+        "HAS_RELATED_VIZSGA",
+      );
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(tesztkerdes).where(inArray(tesztkerdes.tesztId, freeIds));
+      await tx.delete(teszt).where(inArray(teszt.tesztId, freeIds));
+    });
+
+    return c.json({
+      ok: true,
+      torolt: freeIds.length,
+      kihagyott: uniqueIds.length - freeIds.length,
+      vizsgaMiatt: blocked.size,
+    });
+  })
   .delete("/:id", async (c) => {
     const id = c.req.param("id");
     const [archived] = await db
       .update(teszt)
       .set({ archivaltAt: new Date() })
-      .where(eq(teszt.tesztId, id))
+      .where(and(eq(teszt.tesztId, id), isNull(teszt.archivaltAt)))
       .returning();
-    if (!archived) throw new NotFoundError("A teszt nem található.");
+    if (!archived) throw new NotFoundError("A teszt nem található vagy már archivált.");
     return c.json({ ok: true });
   });
 

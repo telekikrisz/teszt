@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createKerdesSchema, createTesztSchema, loginSchema, registerSchema } from "@oktateszt/shared";
+import { createKerdesSchema, createTesztSchema, evfolyamOsztalybol, loginSchema, registerSchema } from "@oktateszt/shared";
 
 describe("Zod sémák", () => {
+  it("osztálynévből évfolyam", () => {
+    expect(evfolyamOsztalybol("13.D")).toBe(13);
+    expect(evfolyamOsztalybol("11.C")).toBe(11);
+    expect(evfolyamOsztalybol(null)).toBeNull();
+  });
+
   it("elutasítja a hibás e-mailt", () => {
     const result = loginSchema.safeParse({ email: "nem-email", password: "x" });
     expect(result.success).toBe(false);

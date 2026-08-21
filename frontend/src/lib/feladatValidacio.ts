@@ -31,7 +31,7 @@ export function ellenorizFeladatMezok(input: {
   }
 
   if (!input.evfolyamId) {
-    uzenetHozza(uzenetek, "Válassz évfolyamot — a feladat mindig egy évfolyamhoz tartozik.");
+    uzenetHozza(uzenetek, "Válassz évfolyamot.");
   }
 
   input.valaszok.forEach((v, idx) => {
