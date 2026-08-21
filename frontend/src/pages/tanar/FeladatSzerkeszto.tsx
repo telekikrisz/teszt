@@ -33,12 +33,40 @@ export function TanarFeladatSzerkesztoPage() {
   const szerkesztes = Boolean(id);
   const hydratedRef = useRef(false);
   const returnTo = search.get("returnTo");
+  const returnSearch = search.get("returnSearch");
   const lockAgazatId = search.get("lockAgazatId") ?? "";
   const lockTantargyId = search.get("lockTantargyId") ?? "";
   const lockTemakorId = search.get("lockTemakorId") ?? "";
-  const tesztbol = Boolean(returnTo && id);
+  /** Teszt szerkesztőből jöttünk (zárolt ágazat/tantárgy), nem sima listából returnTo-val. */
+  const tesztbol = Boolean(id && lockAgazatId && lockTantargyId);
   const feladatokListaUrl = pathname.startsWith("/admin") ? "/admin/feladatok" : "/tanar/feladatok";
-  const visszaUrl = returnTo ?? feladatokListaUrl;
+  const visszaUrl =
+    returnSearch !== null
+      ? returnSearch
+        ? `${feladatokListaUrl}?${returnSearch}`
+        : feladatokListaUrl
+      : (returnTo ?? feladatokListaUrl);
+
+  function navigateVissza() {
+    if (returnSearch !== null) {
+      navigate({
+        pathname: feladatokListaUrl,
+        search: returnSearch ? `?${returnSearch}` : "",
+      });
+      return;
+    }
+    if (returnTo) {
+      try {
+        const url = new URL(returnTo, window.location.origin);
+        navigate({ pathname: url.pathname, search: url.search });
+        return;
+      } catch {
+        navigate(returnTo);
+        return;
+      }
+    }
+    navigate(feladatokListaUrl);
+  }
   const hasUrlSzuro = Boolean(
     search.get("agazatId") || search.get("tantargyId") || search.get("temakorId"),
   );
@@ -220,7 +248,7 @@ export function TanarFeladatSzerkesztoPage() {
         });
         clearFeladatDraft(user.id, id);
       }
-      navigate(visszaUrl);
+      navigateVissza();
     } catch (err) {
       setError(err);
     } finally {
@@ -365,7 +393,7 @@ export function TanarFeladatSzerkesztoPage() {
           <Button type="submit" disabled={pending || archivalt}>
             {pending ? "Mentés..." : "Mentés"}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate(visszaUrl)}>
+          <Button type="button" variant="ghost" onClick={() => navigateVissza()}>
             Mégse
           </Button>
         </div>

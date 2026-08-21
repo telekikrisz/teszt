@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ALAP_TARHELY_SZURO,
   AllapotJeloloSzuro,
@@ -27,29 +27,80 @@ function feladatokBase(pathname: string) {
   return pathname.startsWith("/admin") ? "/admin/feladatok" : "/tanar/feladatok";
 }
 
+function listaSzuroTaroloKulcs(base: string) {
+  return `telekiteszt:feladatok-lista:${base}`;
+}
+
+function boolParam(value: string | null, fallback: boolean) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return fallback;
+}
+
+function olvasKezdoListaSearch(searchParams: URLSearchParams, base: string): URLSearchParams {
+  const fromUrl = searchParams.toString();
+  if (fromUrl) return new URLSearchParams(fromUrl);
+  try {
+    const stored = sessionStorage.getItem(listaSzuroTaroloKulcs(base));
+    if (stored) return new URLSearchParams(stored);
+  } catch {
+    /* ignore */
+  }
+  return new URLSearchParams(tarhelyQuery(ALAP_TARHELY_SZURO.aktiv, ALAP_TARHELY_SZURO.archivalt));
+}
+
 export function TanarFeladatokPage() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const base = feladatokBase(pathname);
   const isAdmin = pathname.startsWith("/admin");
-  const szuro = useBankSzuro();
-  const [q, setQ] = useState("");
-  const [valaszokban, setValaszokban] = useState(false);
-  const [tarhelySzuro, setTarhelySzuro] = useState(ALAP_TARHELY_SZURO);
+
+  const kezdoRef = useRef<URLSearchParams | null>(null);
+  if (!kezdoRef.current) {
+    kezdoRef.current = olvasKezdoListaSearch(searchParams, base);
+  }
+  const kezdo = kezdoRef.current;
+
+  const szuro = useBankSzuro({
+    evfolyamId: kezdo.get("evfolyamId") ?? "",
+    agazatId: kezdo.get("agazatId") ?? "",
+    tantargyId: kezdo.get("tantargyId") ?? "",
+    temakorId: kezdo.get("temakorId") ?? "",
+  });
+  const [q, setQ] = useState(() => kezdo.get("q") ?? "");
+  const [valaszokban, setValaszokban] = useState(() => kezdo.get("valaszokban") === "true");
+  const [tarhelySzuro, setTarhelySzuro] = useState(() => ({
+    aktiv: boolParam(kezdo.get("aktiv"), ALAP_TARHELY_SZURO.aktiv),
+    archivalt: boolParam(kezdo.get("archivalt"), ALAP_TARHELY_SZURO.archivalt),
+  }));
   const [kijeloltIds, setKijeloltIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<unknown>(null);
   const [actionPending, setActionPending] = useState(false);
 
-  const kerdesQuery = useMemo(() => {
+  const listaSearch = useMemo(() => {
     const params = new URLSearchParams(szuro.query);
     if (q) params.set("q", q);
     if (valaszokban) params.set("valaszokban", "true");
-    for (const [key, value] of new URLSearchParams(tarhelyQuery(tarhelySzuro.aktiv, tarhelySzuro.archivalt))) {
+    for (const [key, value] of new URLSearchParams(
+      tarhelyQuery(tarhelySzuro.aktiv, tarhelySzuro.archivalt),
+    )) {
       params.set(key, value);
     }
-    const s = params.toString();
-    return s ? `/api/kerdesek?${s}` : "/api/kerdesek";
+    return params.toString();
   }, [szuro.query, q, valaszokban, tarhelySzuro]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(listaSzuroTaroloKulcs(base), listaSearch);
+    } catch {
+      /* ignore */
+    }
+    if (listaSearch === searchParams.toString()) return;
+    setSearchParams(listaSearch, { replace: true });
+  }, [base, listaSearch, searchParams, setSearchParams]);
+
+  const kerdesQuery = listaSearch ? `/api/kerdesek?${listaSearch}` : "/api/kerdesek";
   const lista = useApi(() => api.get<{ kerdesek: KerdesLista[] }>(kerdesQuery), [kerdesQuery]);
 
   const kerdesek = lista.data?.kerdesek ?? [];
@@ -66,8 +117,14 @@ export function TanarFeladatokPage() {
 
   function ujFeladatUrl() {
     const params = new URLSearchParams(szuro.query);
-    const s = params.toString();
-    return s ? `${base}/uj?${s}` : `${base}/uj`;
+    params.set("returnSearch", listaSearch);
+    return `${base}/uj?${params.toString()}`;
+  }
+
+  function szerkesztesUrl(kerdesId: string) {
+    const params = new URLSearchParams();
+    params.set("returnSearch", listaSearch);
+    return `${base}/${kerdesId}?${params.toString()}`;
   }
 
   function toggleKijeloles(id: string, checked: boolean) {
@@ -251,7 +308,7 @@ export function TanarFeladatokPage() {
 
             <div className="mt-2 flex gap-2 border-t border-rule pt-2">
               {!k.archivalt ? (
-                <Button variant="ghost" onClick={() => navigate(`${base}/${k.kerdesId}`)}>
+                <Button variant="ghost" onClick={() => navigate(szerkesztesUrl(k.kerdesId))}>
                   Szerkesztés
                 </Button>
               ) : null}
