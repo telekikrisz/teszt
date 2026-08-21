@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { TESZT_ALLAPOTOK } from "./enums";
-import { evfolyamIdSchema } from "./evfolyam";
-import { alapFalseBoolQuery, alapTrueBoolQuery } from "./filters";
+import { TESZT_ALLAPOTOK } from "./enums.js";
+import { evfolyamIdSchema } from "./evfolyam.js";
+import { alapFalseBoolQuery, alapTrueBoolQuery } from "./filters.js";
 
 export const tesztSzuroSchema = z.object({
   evfolyamId: z.string().uuid().optional(),

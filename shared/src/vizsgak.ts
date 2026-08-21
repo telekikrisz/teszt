@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { alapFalseBoolQuery, alapTrueBoolQuery } from "./filters";
+import { alapFalseBoolQuery, alapTrueBoolQuery } from "./filters.js";
 
 /** Az időablak vége ennyivel később legyen, mint a kezdés (perc). */
 export const VIZSGA_IDOABLAK_MIN_PERC = 5;

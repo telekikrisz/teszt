@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { evfolyamIdSchema } from "./evfolyam";
-import { alapFalseBoolQuery, alapTrueBoolQuery } from "./filters";
+import { evfolyamIdSchema } from "./evfolyam.js";
+import { alapFalseBoolQuery, alapTrueBoolQuery } from "./filters.js";
 
 export const valaszInputSchema = z.object({
   szoveg: z.string().trim().min(1, "A válasz szövege kötelező.").max(2000),

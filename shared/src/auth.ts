@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { JOGOSULTSAGOK } from "./enums";
-import { alapTrueBoolQuery, tarhelySzuroSchema } from "./filters";
+import { JOGOSULTSAGOK } from "./enums.js";
+import { alapTrueBoolQuery, tarhelySzuroSchema } from "./filters.js";
 
 const nameField = z.string().trim().min(2, "A név legalább 2 karakter legyen.").max(120);
 const emailField = z.string().trim().email("Érvénytelen e-mail cím.");
