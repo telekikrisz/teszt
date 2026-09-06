@@ -17,6 +17,8 @@ import { TanuloKitoltesPage } from "./pages/tanulo/Kitoltes";
 import { TanuloVizsgakPage } from "./pages/tanulo/Vizsgak";
 import { AdminFelhasznalokPage } from "./pages/admin/Felhasznalok";
 import { AdminAlapadatokPage } from "./pages/admin/Alapadatok";
+import { AdminXpPage } from "./pages/admin/Xp";
+import { TanuloXpPage } from "./pages/tanulo/Xp";
 
 function Guard({
   allow,
@@ -68,6 +70,7 @@ export function App() {
           <Route path="vizsgak/felfuggesztett" element={<TanarVizsgakPage allapotSzuro="felfuggesztett" />} />
           <Route path="vizsgak/lezart" element={<TanarVizsgakPage allapotSzuro="lezart" />} />
           <Route path="vizsgak/:id" element={<TanarVizsgaReszletekPage />} />
+          <Route path="xp" element={<AdminXpPage />} />
           <Route path="beallitasok" element={<BeallitasokPage />} />
         </Route>
         <Route
@@ -104,6 +107,7 @@ export function App() {
           <Route index element={<Navigate to="vizsgak" replace />} />
           <Route path="vizsgak" element={<TanuloVizsgakPage />} />
           <Route path="eredmenyek" element={<TanuloEredmenyekPage />} />
+          <Route path="xp" element={<TanuloXpPage />} />
           <Route path="beallitasok" element={<BeallitasokPage />} />
           <Route path="kitoltes/:kitoltesId" element={<TanuloKitoltesPage />} />
         </Route>

@@ -9,3 +9,4 @@ export * from "./tests.js";
 export * from "./vizsgak.js";
 export * from "./attempts.js";
 export * from "./scoring.js";
+export * from "./xp.js";

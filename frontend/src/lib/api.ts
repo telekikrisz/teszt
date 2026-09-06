@@ -81,6 +81,11 @@ export function formatDate(value: string | Date | null | undefined): string {
   }).format(new Date(value));
 }
 
+export function formatDateNap(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("hu-HU", { dateStyle: "long" }).format(new Date(value));
+}
+
 export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return `${Math.round(value)}%`;

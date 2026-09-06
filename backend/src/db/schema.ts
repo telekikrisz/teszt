@@ -1,6 +1,6 @@
 /**
  * Oktateszt – végleges PostgreSQL séma (Drizzle).
- * 15 tábla, magyar DB-nevek. Üzleti szabályok: database/oktateszt-mysql.sql fejléc.
+ * 17 tábla, magyar DB-nevek. Üzleti szabályok: database/oktateszt-mysql.sql fejléc.
  */
 import { relations, sql } from "drizzle-orm";
 import {
@@ -357,6 +357,51 @@ export const kitoltesValasz = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 6. DevPoint (XP)
+// ---------------------------------------------------------------------------
+
+export const xpTetel = pgTable(
+  "xp_tetel",
+  {
+    xpTetelId: uuid("xp_tetel_id").primaryKey().defaultRandom(),
+    tanuloId: uuid("tanulo_id")
+      .notNull()
+      .references(() => felhasznalo.felhasznaloId, { onDelete: "restrict" }),
+    rogzitoId: uuid("rogzito_id")
+      .notNull()
+      .references(() => felhasznalo.felhasznaloId, { onDelete: "restrict" }),
+    esemenyKod: text("esemeny_kod").notNull(),
+    cimke: text("cimke").notNull(),
+    pont: integer("pont").notNull(),
+    letrehozvaAt: timestamp("letrehozva_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("idx_xp_tetel_tanulo").on(table.tanuloId),
+    check("chk_xp_tetel_pont", sql`${table.pont} <> 0`),
+  ],
+);
+
+export const xpJegy = pgTable(
+  "xp_jegy",
+  {
+    xpJegyId: uuid("xp_jegy_id").primaryKey().defaultRandom(),
+    tanuloId: uuid("tanulo_id")
+      .notNull()
+      .references(() => felhasznalo.felhasznaloId, { onDelete: "restrict" }),
+    ertek: integer("ertek").notNull(),
+    letrehozvaAt: timestamp("letrehozva_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("idx_xp_jegy_tanulo").on(table.tanuloId),
+    check("chk_xp_jegy_ertek", sql`${table.ertek} IN (1, 5)`),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
 
@@ -398,6 +443,8 @@ export const felhasznaloRelations = relations(felhasznalo, ({ one, many }) => ({
   munkamenetek: many(munkamenet),
   vizsgazik: many(vizsgazik),
   kitoltesek: many(kitoltes),
+  xpTetelek: many(xpTetel, { relationName: "xpTetelTanulo" }),
+  xpJegyek: many(xpJegy),
 }));
 
 export const munkamenetRelations = relations(munkamenet, ({ one }) => ({
@@ -467,6 +514,26 @@ export const kitoltesValaszRelations = relations(kitoltesValasz, ({ one }) => ({
   }),
 }));
 
+export const xpTetelRelations = relations(xpTetel, ({ one }) => ({
+  tanulo: one(felhasznalo, {
+    fields: [xpTetel.tanuloId],
+    references: [felhasznalo.felhasznaloId],
+    relationName: "xpTetelTanulo",
+  }),
+  rogzito: one(felhasznalo, {
+    fields: [xpTetel.rogzitoId],
+    references: [felhasznalo.felhasznaloId],
+    relationName: "xpTetelRogzito",
+  }),
+}));
+
+export const xpJegyRelations = relations(xpJegy, ({ one }) => ({
+  tanulo: one(felhasznalo, {
+    fields: [xpJegy.tanuloId],
+    references: [felhasznalo.felhasznaloId],
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -477,3 +544,5 @@ export type Felhasznalo = typeof felhasznalo.$inferSelect;
 export type Teszt = typeof teszt.$inferSelect;
 export type Vizsga = typeof vizsga.$inferSelect;
 export type Kitoltes = typeof kitoltes.$inferSelect;
+export type XpTetel = typeof xpTetel.$inferSelect;
+export type XpJegy = typeof xpJegy.$inferSelect;

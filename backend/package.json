@@ -13,6 +13,7 @@
     "db:migrate-vizsga-allapot": "tsx src/db/migrate-vizsga-allapot.ts",
     "db:migrate-vizsga-felfuggesztett": "tsx src/db/migrate-vizsga-felfuggesztett.ts",
     "db:migrate-vizsgazik-hosszabbitas": "tsx src/db/migrate-vizsgazik-hosszabbitas.ts",
+    "db:migrate-xp": "tsx src/db/migrate-xp.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:seed-feladatok": "tsx src/db/seed-feladatok.ts",
     "test": "vitest run",

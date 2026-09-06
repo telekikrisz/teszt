@@ -257,6 +257,7 @@ export function AdminLayout() {
     { to: "/admin/feladatok", label: "Feladatok" },
     { to: "/admin/tesztek", label: "Tesztek" },
     { to: "/admin/vizsgak", label: "Vizsgák" },
+    { to: "/admin/xp", label: "XP gyűjtés" },
   ];
 
   const adminVizsgaAlmenu = [
@@ -473,11 +474,13 @@ export function AdminLayout() {
 const tanuloLinks = [
   { to: "/tanulo/vizsgak", label: "Vizsgák" },
   { to: "/tanulo/eredmenyek", label: "Korábbi vizsgák" },
+  { to: "/tanulo/xp", label: "XP" },
 ];
 
 const tanuloCrumbLabels: Record<string, string> = {
   "/tanulo/vizsgak": "Vizsgák",
   "/tanulo/eredmenyek": "Korábbi vizsgák",
+  "/tanulo/xp": "XP",
   "/tanulo/beallitasok": "Beállítások",
 };
 
