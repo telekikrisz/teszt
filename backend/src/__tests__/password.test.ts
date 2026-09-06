@@ -21,15 +21,33 @@ describe("generateInitialPassword", () => {
 });
 
 describe("allocateStudentEmail", () => {
-  it("ékezetmentes helyi részt képez", () => {
+  const now = new Date("2026-09-02T12:00:00+02:00");
+
+  it("vezetéknév.keresztnév.évosztálybetű a tanévhez", () => {
     const taken = new Set<string>();
-    expect(allocateStudentEmail("Nagy István", taken)).toBe("nagyistvan@iskola.hu");
+    expect(allocateStudentEmail("Lakatos Dániel Dominik", "12.D", taken, now)).toBe(
+      "lakatos.daniel.2023d@telekimezotur.hu",
+    );
+  });
+
+  it("11.D → 2024, 13.D → 2022", () => {
+    const taken = new Set<string>();
+    expect(allocateStudentEmail("Fekete Marcell", "11.D", taken, now)).toBe(
+      "fekete.marcell.2024d@telekimezotur.hu",
+    );
+    expect(allocateStudentEmail("Kiss Zoltán", "13.D", taken, now)).toBe(
+      "kiss.zoltan.2022d@telekimezotur.hu",
+    );
   });
 
   it("ütközéskor számoz", () => {
-    const taken = new Set(["nagyistvan@iskola.hu"]);
-    expect(allocateStudentEmail("Nagy István", taken)).toBe("nagyistvan2@iskola.hu");
-    expect(allocateStudentEmail("Nagy István", taken)).toBe("nagyistvan3@iskola.hu");
+    const taken = new Set(["lakatos.daniel.2023d@telekimezotur.hu"]);
+    expect(allocateStudentEmail("Lakatos Dániel Dominik", "12.D", taken, now)).toBe(
+      "lakatos.daniel.2023d2@telekimezotur.hu",
+    );
+    expect(allocateStudentEmail("Lakatos Dániel Dominik", "12.D", taken, now)).toBe(
+      "lakatos.daniel.2023d3@telekimezotur.hu",
+    );
   });
 });
 

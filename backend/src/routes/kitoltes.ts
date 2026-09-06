@@ -156,17 +156,20 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
       vizsgaKerdesId: kitoltesValasz.vizsgaKerdesId,
       vizsgaValaszId: kitoltesValasz.vizsgaValaszId,
       helyes: kitoltesValasz.helyes,
+      kapottPont: kitoltesValasz.kapottPont,
     })
     .from(kitoltesValasz)
     .where(eq(kitoltesValasz.kitoltesId, kitoltesId));
 
   const kijeloltByKerdes = new Map<string, string[]>();
   const helyesByValasz = new Map<string, boolean>();
+  const pontByKerdes = new Map<string, number>();
   for (const k of kijeloltRows) {
     const list = kijeloltByKerdes.get(k.vizsgaKerdesId) ?? [];
     list.push(k.vizsgaValaszId);
     kijeloltByKerdes.set(k.vizsgaKerdesId, list);
     helyesByValasz.set(k.vizsgaValaszId, k.helyes);
+    pontByKerdes.set(k.vizsgaKerdesId, (pontByKerdes.get(k.vizsgaKerdesId) ?? 0) + k.kapottPont);
   }
 
   const folyamatban = fejlec.allapot === "folyamatban";
@@ -217,6 +220,7 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
         index: index + 1,
         szoveg: k.szoveg,
         pontszam: k.pontszam,
+        kapottPont: nezettMod === "attekintes" ? (pontByKerdes.get(k.vizsgaKerdesId) ?? 0) : null,
         joValaszDb,
         valaszok,
         kijeloltValaszIds: kijeloltByKerdes.get(k.vizsgaKerdesId) ?? [],

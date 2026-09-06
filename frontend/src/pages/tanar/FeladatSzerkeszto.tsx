@@ -352,8 +352,9 @@ export function TanarFeladatSzerkesztoPage() {
         <div className="space-y-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-navy/70">Válaszlehetőségek</div>
           <p className="text-sm text-ink/70">
-            Egy jó válasz = egyválasztós, több jó = többválasztós. Többválasztósnál legalább annyi helytelen válasz
-            legyen, mint helyes.
+            Egy jó válasz = egyválasztós (0 vagy teljes pont). Több jó = többválasztós: eltalált
+            helyes opció +1, hibás jelölés −1, 0 alá nem megy. Legalább annyi helytelen opció kell,
+            mint helyes — így az összes bejelölése nem ér pontot.
           </p>
           {valaszok.map((v, idx) => (
             <div key={idx} className="flex items-center gap-2">

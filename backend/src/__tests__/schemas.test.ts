@@ -27,6 +27,35 @@ describe("Zod sémák", () => {
     expect(result.success).toBe(false);
   });
 
+  it("többválasztósnál legalább annyi rossz opció kell, mint jó", () => {
+    const kevesRossz = createKerdesSchema.safeParse({
+      evfolyamId: "11111111-1111-1111-1111-111111111111",
+      temakorId: "11111111-1111-1111-1111-111111111111",
+      szoveg: "Kérdés?",
+      pontszam: 2,
+      valaszok: [
+        { szoveg: "A", jo: true },
+        { szoveg: "B", jo: true },
+        { szoveg: "C", jo: false },
+      ],
+    });
+    expect(kevesRossz.success).toBe(false);
+
+    const ok = createKerdesSchema.safeParse({
+      evfolyamId: "11111111-1111-1111-1111-111111111111",
+      temakorId: "11111111-1111-1111-1111-111111111111",
+      szoveg: "Kérdés?",
+      pontszam: 2,
+      valaszok: [
+        { szoveg: "A", jo: true },
+        { szoveg: "B", jo: true },
+        { szoveg: "C", jo: false },
+        { szoveg: "D", jo: false },
+      ],
+    });
+    expect(ok.success).toBe(true);
+  });
+
   it("elfogadja az egyválasztós kérdést", () => {
     const result = createKerdesSchema.safeParse({
       evfolyamId: "11111111-1111-1111-1111-111111111111",

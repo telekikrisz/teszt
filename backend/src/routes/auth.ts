@@ -5,6 +5,7 @@ import {
   adminUpdateUserSchema,
   allocateStudentEmail,
   bulkArchivalasSchema,
+  bulkTorlesSchema,
   createUserSchema,
   felhasznaloSzuroSchema,
   generateInitialPassword,
@@ -242,7 +243,7 @@ export const authRoutes = new Hono<AppEnv>()
           continue;
         }
 
-        const email = allocateStudentEmail(sor.name, taken);
+        const email = allocateStudentEmail(sor.name, sor.osztaly.trim(), taken);
         const jelszoHash = await hashPassword(kezdetiJelszo);
         const [row] = await db
           .insert(felhasznalo)
@@ -442,6 +443,46 @@ export const authRoutes = new Hono<AppEnv>()
       ok: true,
       archivalt: archivedIds.length,
       kihagyott: uniqueIds.length - archivedIds.length,
+    });
+  })
+  .post("/users/torles", requireAdmin, zValidator("json", bulkTorlesSchema), async (c) => {
+    const current = getUser(c);
+    const { ids } = c.req.valid("json");
+    const uniqueIds = [...new Set(ids)].filter((id) => id !== current.id);
+    if (uniqueIds.length === 0) {
+      throw new AppError(400, "Nincs törölhető kijelölt felhasználó.", "EMPTY_SELECTION");
+    }
+
+    const archived = await db
+      .select({ id: felhasznalo.felhasznaloId })
+      .from(felhasznalo)
+      .where(and(inArray(felhasznalo.felhasznaloId, uniqueIds), isNotNull(felhasznalo.archivaltAt)));
+
+    const torolhetoIds = archived.map((r) => r.id);
+    if (torolhetoIds.length === 0) {
+      throw new AppError(400, "Csak archivált felhasználó törölhető.", "NOT_ARCHIVED");
+    }
+
+    let torolt = 0;
+    let kapcsolodoAdat = 0;
+    for (const id of torolhetoIds) {
+      try {
+        await db.delete(felhasznalo).where(eq(felhasznalo.felhasznaloId, id));
+        torolt += 1;
+      } catch (err) {
+        if (typeof err === "object" && err && "code" in err && (err as { code: string }).code === "23503") {
+          kapcsolodoAdat += 1;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    return c.json({
+      ok: true,
+      torolt,
+      kihagyott: uniqueIds.length - torolhetoIds.length + kapcsolodoAdat,
+      kapcsolodoAdat,
     });
   })
   .post("/users/evfolyam-leptetes", requireAdmin, async (c) => {

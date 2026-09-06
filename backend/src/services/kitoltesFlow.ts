@@ -1,3 +1,4 @@
+import { ertekelKerdesPont } from "@oktateszt/shared";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
@@ -63,43 +64,8 @@ async function loadJoValaszok(kerdesIds: string[]) {
   return map;
 }
 
-function kerdesPont(
-  joIds: Set<string>,
-  kijeloltIds: Set<string>,
-  pontszam: number,
-): number {
-  if (kijeloltIds.size === 0) return 0;
-  if (joIds.size === 1) {
-    const [only] = [...kijeloltIds];
-    return only && joIds.has(only) ? pontszam : 0;
-  }
-  if (kijeloltIds.size !== joIds.size) return 0;
-  for (const id of joIds) {
-    if (!kijeloltIds.has(id)) return 0;
-  }
-  for (const id of kijeloltIds) {
-    if (!joIds.has(id)) return 0;
-  }
-  return pontszam;
-}
-
-export async function ertekelEsLezarKitoltes(
-  kitoltesId: string,
-  allapot: "bekuldve" | "lejart",
-): Promise<void> {
-  const [fejlec] = await db
-    .select({
-      kitoltesId: kitoltes.kitoltesId,
-      vizsgaId: kitoltes.vizsgaId,
-      allapot: kitoltes.allapot,
-    })
-    .from(kitoltes)
-    .where(eq(kitoltes.kitoltesId, kitoltesId))
-    .limit(1);
-  if (!fejlec) throw new NotFoundError("A kitöltés nem található.");
-  if (fejlec.allapot !== "folyamatban") return;
-
-  const kerdesek = await loadKerdesPontok(fejlec.vizsgaId);
+async function ertekelKitoltesPontok(kitoltesId: string, vizsgaId: string): Promise<void> {
+  const kerdesek = await loadKerdesPontok(vizsgaId);
   const kerdesIds = kerdesek.map((k) => k.vizsgaKerdesId);
   const joMap = await loadJoValaszok(kerdesIds);
 
@@ -123,33 +89,63 @@ export async function ertekelEsLezarKitoltes(
   for (const k of kerdesek) {
     const joIds = joMap.get(k.vizsgaKerdesId) ?? new Set<string>();
     const kijelolt = kijeloltByKerdes.get(k.vizsgaKerdesId) ?? new Set<string>();
-    pontByKerdes.set(k.vizsgaKerdesId, kerdesPont(joIds, kijelolt, k.pontszam));
+    pontByKerdes.set(k.vizsgaKerdesId, ertekelKerdesPont(joIds, kijelolt, k.pontszam));
   }
 
-  const valaszJo = await db
-    .select({ vizsgaValaszId: vizsgaValasz.vizsgaValaszId, jo: vizsgaValasz.jo })
-    .from(vizsgaValasz)
-    .where(inArray(vizsgaValasz.vizsgaKerdesId, kerdesIds));
+  const valaszJo =
+    kerdesIds.length === 0
+      ? []
+      : await db
+          .select({ vizsgaValaszId: vizsgaValasz.vizsgaValaszId, jo: vizsgaValasz.jo })
+          .from(vizsgaValasz)
+          .where(inArray(vizsgaValasz.vizsgaKerdesId, kerdesIds));
   const joByValasz = new Map(valaszJo.map((v) => [v.vizsgaValaszId, v.jo]));
 
-  await db.transaction(async (tx) => {
-    for (const r of valaszRows) {
-      const kerdesPontErtek = pontByKerdes.get(r.vizsgaKerdesId) ?? 0;
-      const kijelolt = kijeloltByKerdes.get(r.vizsgaKerdesId) ?? new Set<string>();
-      const helyes = Boolean(joByValasz.get(r.vizsgaValaszId) && kijelolt.has(r.vizsgaValaszId));
-      const elsőKijelolt =
-        [...kijelolt].sort()[0] === r.vizsgaValaszId ? kerdesPontErtek : 0;
-      await tx
-        .update(kitoltesValasz)
-        .set({ helyes, kapottPont: elsőKijelolt })
-        .where(eq(kitoltesValasz.kitoltesValaszId, r.kitoltesValaszId));
-    }
+  for (const r of valaszRows) {
+    const kerdesPontErtek = pontByKerdes.get(r.vizsgaKerdesId) ?? 0;
+    const kijelolt = kijeloltByKerdes.get(r.vizsgaKerdesId) ?? new Set<string>();
+    const helyes = Boolean(joByValasz.get(r.vizsgaValaszId) && kijelolt.has(r.vizsgaValaszId));
+    const elsőKijelolt = [...kijelolt].sort()[0] === r.vizsgaValaszId ? kerdesPontErtek : 0;
+    await db
+      .update(kitoltesValasz)
+      .set({ helyes, kapottPont: elsőKijelolt })
+      .where(eq(kitoltesValasz.kitoltesValaszId, r.kitoltesValaszId));
+  }
+}
 
-    await tx
-      .update(kitoltes)
-      .set({ allapot, bekuldveAt: utcNow() })
-      .where(eq(kitoltes.kitoltesId, kitoltesId));
-  });
+export async function ujraertekelLezartKitoltesek(): Promise<number> {
+  const rows = await db
+    .select({ kitoltesId: kitoltes.kitoltesId, vizsgaId: kitoltes.vizsgaId })
+    .from(kitoltes)
+    .where(sql`${kitoltes.allapot} <> 'folyamatban'`);
+  for (const r of rows) {
+    await ertekelKitoltesPontok(r.kitoltesId, r.vizsgaId);
+  }
+  return rows.length;
+}
+
+export async function ertekelEsLezarKitoltes(
+  kitoltesId: string,
+  allapot: "bekuldve" | "lejart",
+): Promise<void> {
+  const [fejlec] = await db
+    .select({
+      kitoltesId: kitoltes.kitoltesId,
+      vizsgaId: kitoltes.vizsgaId,
+      allapot: kitoltes.allapot,
+    })
+    .from(kitoltes)
+    .where(eq(kitoltes.kitoltesId, kitoltesId))
+    .limit(1);
+  if (!fejlec) throw new NotFoundError("A kitöltés nem található.");
+  if (fejlec.allapot !== "folyamatban") return;
+
+  await ertekelKitoltesPontok(kitoltesId, fejlec.vizsgaId);
+
+  await db
+    .update(kitoltes)
+    .set({ allapot, bekuldveAt: utcNow() })
+    .where(eq(kitoltes.kitoltesId, kitoltesId));
 
   await syncVizsgaKitoltesek(fejlec.vizsgaId);
 }

@@ -17,6 +17,7 @@ type KitoltesKerdes = {
   index: number;
   szoveg: string;
   pontszam: number;
+  kapottPont: number | null;
   joValaszDb: number;
   valaszok: KitoltesValasz[];
   kijeloltValaszIds: string[];
@@ -38,6 +39,42 @@ type KitoltesPayload = {
   szazalek: number | null;
   kerdesek: KitoltesKerdes[];
 };
+
+function attekintesValaszOsztaly(valasz: KitoltesValasz, kijelolt: boolean): string {
+  if (valasz.helyesValasztas) {
+    return "border-2 border-emerald-700 bg-emerald-300 text-emerald-950";
+  }
+  if (kijelolt && !valasz.helyesValasztas) {
+    return "border-2 border-red-700 bg-red-300 text-red-950";
+  }
+  if (valasz.jo) {
+    return "border-2 border-emerald-600 bg-emerald-100 text-emerald-950";
+  }
+  return "border border-rule bg-white text-ink/70";
+}
+
+function attekintesValaszCimke(valasz: KitoltesValasz, kijelolt: boolean): string | null {
+  if (valasz.helyesValasztas) return "Eltaláltad";
+  if (kijelolt && !valasz.helyesValasztas) return "Hibás jelölés";
+  if (valasz.jo) return "Ez lett volna a helyes";
+  return null;
+}
+
+function kerdesNavOsztaly(
+  aktiv: boolean,
+  attekintes: boolean,
+  kerdes: KitoltesKerdes,
+): string {
+  if (aktiv) return "bg-clay text-white";
+  if (!attekintes) {
+    return kerdes.kijeloltValaszIds.length > 0 ? "bg-moss/20 text-moss" : "border border-rule bg-white";
+  }
+  const kapott = kerdes.kapottPont ?? 0;
+  if (kapott >= kerdes.pontszam) return "bg-emerald-600 text-white";
+  if (kapott > 0) return "bg-amber-500 text-white";
+  if (kerdes.kijeloltValaszIds.length > 0) return "bg-red-600 text-white";
+  return "border border-rule bg-white";
+}
 
 function formatIdo(mp: number) {
   const m = Math.floor(mp / 60);
@@ -264,13 +301,7 @@ export function TanuloKitoltesPage() {
               key={k.vizsgaKerdesId}
               type="button"
               onClick={() => setCurrent(idx)}
-              className={`h-8 w-8 shrink-0 rounded-md text-xs font-semibold ${
-                idx === current
-                  ? "bg-clay text-white"
-                  : k.kijeloltValaszIds.length > 0
-                    ? "bg-moss/20 text-moss"
-                    : "border border-rule bg-white"
-              }`}
+              className={`h-8 w-8 shrink-0 rounded-md text-xs font-semibold ${kerdesNavOsztaly(idx === current, attekintes, k)}`}
             >
               {idx + 1}
             </button>
@@ -279,8 +310,13 @@ export function TanuloKitoltesPage() {
         {kerdes ? (
           <div className="shrink-0 text-right">
             <div className="font-display text-lg font-semibold tabular-nums leading-none text-navy">
-              {kerdes.pontszam} pont
+              {attekintes && kerdes.kapottPont !== null
+                ? `${kerdes.kapottPont}/${kerdes.pontszam} pont`
+                : `${kerdes.pontszam} pont`}
             </div>
+            {attekintes && kerdes.kapottPont !== null && kerdes.kapottPont > 0 && kerdes.kapottPont < kerdes.pontszam ? (
+              <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">részpont</div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -293,15 +329,21 @@ export function TanuloKitoltesPage() {
             joValaszDb={attekintes ? 0 : kerdes.joValaszDb}
             className="mt-2 font-display text-xl text-navy"
           />
+          {attekintes ? (
+            <p className="mt-3 text-xs text-ink/60">
+              Zöld: helyes válasz (sötétebb, ha te is ezt jelölted). Piros: hibásan bejelölt opció.
+              Többjó kérdésnél a helyes jelölés +1, a hibás −1.
+            </p>
+          ) : null}
           <div className="mt-4 space-y-2">
             {kerdes.valaszok.map((valasz, idx) => {
               const kijelolt = kerdes.kijeloltValaszIds.includes(valasz.vizsgaValaszId);
-              let border = kijelolt ? "border-clay bg-clay/10" : "border-rule";
-              if (attekintes) {
-                if (valasz.helyesValasztas) border = "border-moss bg-moss/10";
-                else if (kijelolt && !valasz.helyesValasztas) border = "border-red-300 bg-red-50";
-                else if (valasz.jo) border = "border-moss/40 bg-moss/5";
-              }
+              const cimke = attekintes ? attekintesValaszCimke(valasz, kijelolt) : null;
+              const osztaly = attekintes
+                ? attekintesValaszOsztaly(valasz, kijelolt)
+                : kijelolt
+                  ? "border-clay bg-clay/10"
+                  : "border-rule";
 
               return (
                 <button
@@ -309,10 +351,15 @@ export function TanuloKitoltesPage() {
                   type="button"
                   disabled={!modosithato || pending}
                   onClick={() => void valaszt(kerdes, valasz.vizsgaValaszId)}
-                  className={`block w-full rounded-lg border px-4 py-3 text-left ${border} disabled:opacity-60`}
+                  className={`block w-full rounded-lg border px-4 py-3 text-left ${osztaly} ${
+                    attekintes ? "cursor-default disabled:opacity-100" : "disabled:opacity-60"
+                  }`}
                 >
                   <span className="mr-2 font-semibold">{String.fromCharCode(65 + idx)}.</span>
                   {valasz.szoveg}
+                  {cimke ? (
+                    <span className="mt-1 block text-xs font-bold uppercase tracking-wide">{cimke}</span>
+                  ) : null}
                 </button>
               );
             })}

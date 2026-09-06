@@ -141,11 +141,15 @@ export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileSchema>;
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
 export type FelhasznaloSzuro = z.infer<typeof felhasznaloSzuroSchema>;
 
-export const bulkArchivalasSchema = z.object({
+export const bulkFelhasznaloIdsSchema = z.object({
   ids: z.array(z.string().uuid()).min(1, "Legalább egy felhasználót ki kell jelölni.").max(500),
 });
 
+export const bulkArchivalasSchema = bulkFelhasznaloIdsSchema;
+export const bulkTorlesSchema = bulkFelhasznaloIdsSchema;
+
 export type BulkArchivalasInput = z.infer<typeof bulkArchivalasSchema>;
+export type BulkTorlesInput = z.infer<typeof bulkTorlesSchema>;
 
 export const importTanuloSorSchema = z.object({
   name: nameField,

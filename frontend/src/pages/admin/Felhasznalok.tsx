@@ -112,12 +112,34 @@ export function AdminFelhasznalokPage() {
   const evfolyamok = evfolyamokApi.data?.evfolyamok ?? [];
   const agazatok = agazatokApi.data?.agazatok ?? [];
   const users = lista.data?.users ?? [];
+  const csakAktivSzuro = tarhelySzuro.aktiv && !tarhelySzuro.archivalt;
+  const csakArchivSzuro = tarhelySzuro.archivalt && !tarhelySzuro.aktiv;
+
   const archivalhatoIds = useMemo(
     () => users.filter((u) => !u.archivalt).map((u) => u.id),
     [users],
   );
+  const torolhetoIds = useMemo(
+    () => users.filter((u) => u.archivalt).map((u) => u.id),
+    [users],
+  );
+  const kijelolhetoIds = useMemo(() => {
+    if (csakArchivSzuro) return torolhetoIds;
+    if (csakAktivSzuro) return archivalhatoIds;
+    return users.map((u) => u.id);
+  }, [users, csakArchivSzuro, csakAktivSzuro, torolhetoIds, archivalhatoIds]);
+
+  const kijeloltArchivalhato = useMemo(
+    () => [...kijeloltIds].filter((id) => archivalhatoIds.includes(id)).length,
+    [kijeloltIds, archivalhatoIds],
+  );
+  const kijeloltTorolheto = useMemo(
+    () => [...kijeloltIds].filter((id) => torolhetoIds.includes(id)).length,
+    [kijeloltIds, torolhetoIds],
+  );
+
   const mindKijelolve =
-    archivalhatoIds.length > 0 && archivalhatoIds.every((id) => kijeloltIds.has(id));
+    kijelolhetoIds.length > 0 && kijelolhetoIds.every((id) => kijeloltIds.has(id));
 
   useEffect(() => {
     setKijeloltIds(new Set());
@@ -133,7 +155,13 @@ export function AdminFelhasznalokPage() {
   }
 
   function toggleMind(checked: boolean) {
-    setKijeloltIds(checked ? new Set(archivalhatoIds) : new Set());
+    setKijeloltIds(checked ? new Set(kijelolhetoIds) : new Set());
+  }
+
+  function userKijelolheto(u: FelhasznaloSor) {
+    if (csakArchivSzuro) return u.archivalt;
+    if (csakAktivSzuro) return !u.archivalt;
+    return true;
   }
 
   function openCreate() {
@@ -260,6 +288,40 @@ export function AdminFelhasznalokPage() {
     }
   }
 
+  async function csoportosTorles() {
+    const ids = [...kijeloltIds].filter((id) => torolhetoIds.includes(id));
+    if (ids.length === 0) return;
+    setActionError(null);
+    if (
+      !confirm(
+        `Véglegesen törlöd a kijelölt ${ids.length} archivált felhasználót?\nEz nem vonható vissza.`,
+      )
+    ) {
+      return;
+    }
+    setActionPending(true);
+    try {
+      const result = await api.post<{
+        torolt: number;
+        kihagyott: number;
+        kapcsolodoAdat: number;
+      }>("/api/auth/users/torles", { ids });
+      setKijeloltIds(new Set());
+      await lista.reload();
+      if (result.kapcsolodoAdat > 0) {
+        alert(
+          `Törölve: ${result.torolt}\n` +
+            `Nem törölhető (vizsga/kitöltés adat): ${result.kapcsolodoAdat}\n` +
+            `Egyéb kihagyott: ${Math.max(0, result.kihagyott - result.kapcsolodoAdat)}`,
+        );
+      }
+    } catch (err) {
+      setActionError(err);
+    } finally {
+      setActionPending(false);
+    }
+  }
+
   async function evfolyamLeptetes() {
     setActionError(null);
     if (
@@ -320,7 +382,7 @@ export function AdminFelhasznalokPage() {
       if (
         !confirm(
           `${tanulok.length} tanuló importálása következik.\n` +
-            `E-mail: ékezetmentes név@iskola.hu (ütközéskor számozva).\n` +
+            `E-mail: vezetéknév.keresztnév.évosztálybetű@telekimezotur.hu (ütközéskor számozva).\n` +
             `Jelszó: 3+3 betű + 1! (pl. Nagy István → NagIst1!).\nFolytatod?`,
         )
       ) {
@@ -422,19 +484,30 @@ export function AdminFelhasznalokPage() {
               <input
                 type="checkbox"
                 checked={mindKijelolve}
-                disabled={archivalhatoIds.length === 0}
+                disabled={kijelolhetoIds.length === 0}
                 onChange={(e) => toggleMind(e.target.checked)}
                 className="rounded border-rule"
               />
               Mind
             </label>
-            <Button
-              variant="danger"
-              disabled={kijeloltIds.size === 0 || actionPending}
-              onClick={() => void csoportosArchivalas()}
-            >
-              Archiválás ({kijeloltIds.size})
-            </Button>
+            {!csakArchivSzuro ? (
+              <Button
+                variant="danger"
+                disabled={kijeloltArchivalhato === 0 || actionPending}
+                onClick={() => void csoportosArchivalas()}
+              >
+                Archiválás ({kijeloltArchivalhato})
+              </Button>
+            ) : null}
+            {!csakAktivSzuro ? (
+              <Button
+                variant="danger"
+                disabled={kijeloltTorolheto === 0 || actionPending}
+                onClick={() => void csoportosTorles()}
+              >
+                Törlés ({kijeloltTorolheto})
+              </Button>
+            ) : null}
             {csakDiak ? (
               <Button
                 variant="secondary"
@@ -493,7 +566,7 @@ export function AdminFelhasznalokPage() {
         {users.map((u) => (
           <article key={u.id} className="rounded-xl border border-rule bg-white p-3 shadow-sm">
             <div className="flex flex-wrap items-start gap-3">
-              {!u.archivalt ? (
+              {userKijelolheto(u) ? (
                 <label className="mt-1 flex shrink-0 items-center">
                   <input
                     type="checkbox"
