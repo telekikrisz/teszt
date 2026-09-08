@@ -2,6 +2,7 @@ export type TesztDraftKerdes = {
   kerdesId: string;
   szoveg: string;
   pontszam: number;
+  kepFajl?: string | null;
   evfolyamId: string;
   agazatId: string;
   tantargyId: string;

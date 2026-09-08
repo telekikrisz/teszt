@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BankSzuro } from "../../components/BankSzuro";
+import { KerdesKep } from "../../components/KerdesKep";
 import { Button, ErrorText, Field, Input, NumberInput, PageHeader, Textarea } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -11,7 +12,7 @@ import {
   loadFeladatDraft,
   saveFeladatDraft,
 } from "../../lib/feladatDraft";
-import { loadFeladatSzuroPrefs, saveFeladatSzuroPrefs } from "../../lib/feladatSzuroPrefs";
+import { loadFeladatSzuroPrefs, mergeFeladatSzuroPrefs, saveFeladatSzuroPrefs } from "../../lib/feladatSzuroPrefs";
 import { ellenorizFeladatMezok, hibasMezoClass, type FeladatMezoHibak } from "../../lib/feladatValidacio";
 import { useApi } from "../../lib/useApi";
 
@@ -67,10 +68,6 @@ export function TanarFeladatSzerkesztoPage() {
     }
     navigate(feladatokListaUrl);
   }
-  const hasUrlSzuro = Boolean(
-    search.get("agazatId") || search.get("tantargyId") || search.get("temakorId"),
-  );
-
   const szuro = useBankSzuro({
     evfolyamId: search.get("evfolyamId") ?? "",
     agazatId: search.get("agazatId") ?? "",
@@ -85,6 +82,7 @@ export function TanarFeladatSzerkesztoPage() {
         temakorId: string;
         szoveg: string;
         pontszam: number;
+        kepFajl: string | null;
         evfolyamId: string;
         agazatId: string;
         tantargyId: string;
@@ -96,12 +94,53 @@ export function TanarFeladatSzerkesztoPage() {
 
   const [szoveg, setSzoveg] = useState("");
   const [pontszam, setPontszam] = useState("1");
+  const [kepFajl, setKepFajl] = useState<string | null>(null);
+  const [kepPending, setKepPending] = useState(false);
   const [valaszok, setValaszok] = useState<ValaszDraft[]>(URES_VALASZOK);
   const [error, setError] = useState<unknown>(null);
   const [mezoHibak, setMezoHibak] = useState<FeladatMezoHibak | null>(null);
   const [pending, setPending] = useState(false);
   const [draftVisszaallitva, setDraftVisszaallitva] = useState(false);
   const [archivalt, setArchivalt] = useState(false);
+
+  const feltoltKep = useCallback(async (file: File) => {
+    if (archivalt) return;
+    setError(null);
+    setKepPending(true);
+    try {
+      const fd = new FormData();
+      fd.append("kep", file);
+      const result = await api.upload<{ kepFajl: string }>("/api/kerdesek/kep", fd);
+      setKepFajl(result.kepFajl);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setKepPending(false);
+    }
+  }, [archivalt]);
+
+  useEffect(() => {
+    function kepAClipboardrol(dt: DataTransfer | null): File | null {
+      if (!dt) return null;
+      const fromFiles = [...dt.files].find((f) => f.type.startsWith("image/"));
+      if (fromFiles) return fromFiles;
+      for (const item of dt.items) {
+        if (item.kind === "file" && item.type.startsWith("image/")) return item.getAsFile();
+      }
+      return null;
+    }
+
+    function onPaste(e: ClipboardEvent) {
+      if (archivalt) return;
+      const file = kepAClipboardrol(e.clipboardData);
+      if (!file) return;
+      e.preventDefault();
+      void feltoltKep(file);
+    }
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [archivalt, feltoltKep]);
 
   function applyDraft(draft: ReturnType<typeof loadFeladatDraft>) {
     if (!draft) return;
@@ -113,14 +152,23 @@ export function TanarFeladatSzerkesztoPage() {
     });
     setSzoveg(draft.szoveg);
     setPontszam(draft.pontszam);
+    setKepFajl(draft.kepFajl ?? null);
     setValaszok(draft.valaszok.length >= 2 ? draft.valaszok : URES_VALASZOK);
     setDraftVisszaallitva(true);
   }
 
   function applySzuroPrefs() {
-    if (hasUrlSzuro) return;
-    const prefs = loadFeladatSzuroPrefs(user!.id);
-    if (prefs) szuro.hydrate(prefs);
+    szuro.hydrate(
+      mergeFeladatSzuroPrefs(
+        {
+          evfolyamId: search.get("evfolyamId") ?? "",
+          agazatId: search.get("agazatId") ?? "",
+          tantargyId: search.get("tantargyId") ?? "",
+          temakorId: search.get("temakorId") ?? "",
+        },
+        loadFeladatSzuroPrefs(user!.id),
+      ),
+    );
   }
 
   function applyKerdes(k: NonNullable<typeof existing.data>["kerdes"]) {
@@ -133,6 +181,7 @@ export function TanarFeladatSzerkesztoPage() {
     });
     setSzoveg(k.szoveg);
     setPontszam(String(k.pontszam));
+    setKepFajl(k.kepFajl ?? null);
     setValaszok(k.valaszok.length >= 2 ? k.valaszok.map((v) => ({ szoveg: v.szoveg, jo: v.jo })) : URES_VALASZOK);
   }
 
@@ -192,6 +241,7 @@ export function TanarFeladatSzerkesztoPage() {
           temakorId: szuro.temakorId,
           szoveg,
           pontszam,
+          kepFajl,
           valaszok,
         });
       } else {
@@ -204,7 +254,7 @@ export function TanarFeladatSzerkesztoPage() {
       }
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [user, id, szuro.evfolyamId, szuro.agazatId, szuro.tantargyId, szuro.temakorId, szoveg, pontszam, valaszok]);
+  }, [user, id, szuro.evfolyamId, szuro.agazatId, szuro.tantargyId, szuro.temakorId, szoveg, pontszam, kepFajl, valaszok]);
 
   const kitoltott = valaszok.filter((v) => v.szoveg.trim());
   const hibasValasz = new Set(mezoHibak?.valaszIdxek ?? []);
@@ -235,6 +285,7 @@ export function TanarFeladatSzerkesztoPage() {
         temakorId: szuro.temakorId,
         szoveg,
         pontszam: Number(pontszam),
+        kepFajl,
         valaszok: kitoltott,
       };
       if (id) await api.patch(`/api/kerdesek/${id}${korlatQuery()}`, body);
@@ -337,6 +388,52 @@ export function TanarFeladatSzerkesztoPage() {
             className={hibasMezoClass(Boolean(mezoHibak?.szoveg))}
           />
         </Field>
+
+        <div
+          className="space-y-2 rounded-md border border-dashed border-rule p-3"
+          onDragOver={(e) => {
+            if (archivalt) return;
+            if ([...e.dataTransfer.types].includes("Files")) e.preventDefault();
+          }}
+          onDrop={(e) => {
+            if (archivalt) return;
+            const file = [...e.dataTransfer.files].find((f) => f.type.startsWith("image/"));
+            if (!file) return;
+            e.preventDefault();
+            void feltoltKep(file);
+          }}
+        >
+          <div className="text-xs font-semibold uppercase tracking-wide text-navy/70">Kép a kérdéshez</div>
+          <p className="text-sm text-ink/70">
+            Opcionális. JPG, PNG, GIF vagy WebP, legfeljebb 5 MB. A nagy kép a képernyőhöz igazodik, a kisebb
+            eredeti méretben marad. Képernyőmentés után illeszd be ide (<kbd className="rounded border border-rule px-1">Ctrl</kbd>+
+            <kbd className="rounded border border-rule px-1">V</kbd>), vagy húzd ide a fájlt.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex cursor-pointer">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                className="sr-only"
+                disabled={kepPending || archivalt}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void feltoltKep(file);
+                }}
+              />
+              <span className="inline-flex items-center justify-center gap-2 rounded-md border border-rule bg-gradient-to-b from-white to-paper-2 px-4 py-2 text-sm font-semibold text-navy shadow-sm">
+                {kepPending ? "Feltöltés..." : kepFajl ? "Másik kép" : "Kép feltöltése"}
+              </span>
+            </label>
+            {kepFajl ? (
+              <Button type="button" variant="ghost" disabled={archivalt} onClick={() => setKepFajl(null)}>
+                Kép eltávolítása
+              </Button>
+            ) : null}
+          </div>
+          <KerdesKep fajl={kepFajl} />
+        </div>
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-navy/70">Pontszám</span>

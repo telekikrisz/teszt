@@ -4,6 +4,7 @@ import { agazatRoutes } from "./agazatok.js";
 import { tantargyRoutes } from "./tantargyak.js";
 import { temakorRoutes } from "./temakorok.js";
 import { kerdesRoutes } from "./kerdesek.js";
+import { kerdesKepRoutes } from "./kerdesKepek.js";
 import { kitoltesRoutes } from "./kitoltes.js";
 import { evfolyamRoutes } from "./evfolyamok.js";
 import { tesztRoutes } from "./tesztek.js";
@@ -22,6 +23,7 @@ export const api = new Hono<AppEnv>()
   .route("/temakorok", temakorRoutes)
   .route("/evfolyamok", evfolyamRoutes)
   .route("/kerdesek", kerdesRoutes)
+  .route("/kerdes-kepek", kerdesKepRoutes)
   .route("/tesztek", tesztRoutes)
   .route("/vizsgak", vizsgaRoutes)
   .route("/xp", xpRoutes)

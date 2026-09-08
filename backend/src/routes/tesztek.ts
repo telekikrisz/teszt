@@ -289,6 +289,7 @@ async function loadTeszt(id: string, allowArchived = false) {
             kerdesId: kerdes.kerdesId,
             szoveg: kerdes.szoveg,
             pontszam: kerdes.pontszam,
+            kepFajl: kerdes.kepFajl,
             temakorId: kerdes.temakorId,
             tantargyId: tantargy.tantargyId,
             agazatId: agazat.agazatId,

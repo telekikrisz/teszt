@@ -8,7 +8,8 @@ backend/seed-felhasznalok.local.txt
 .DS_Store
 coverage
 .vite
-*.tsbuildinfo
+uploads
+backend/uploads
 .idea
 .vscode/*
 !.vscode/extensions.json

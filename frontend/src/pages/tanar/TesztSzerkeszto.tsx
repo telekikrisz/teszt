@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { TESZT_ALLAPOT_LABELS, type TesztAllapot } from "@oktateszt/shared";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BankSzuro } from "../../components/BankSzuro";
+import { KerdesKep } from "../../components/KerdesKep";
 import { Badge, Button, Empty, ErrorText, Field, Input, NumberInput, PageHeader } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -14,6 +15,7 @@ type KerdesLista = {
   kerdesId: string;
   szoveg: string;
   pontszam: number;
+  kepFajl?: string | null;
   evfolyamId: string;
   agazatId: string;
   tantargyId: string;
@@ -115,6 +117,7 @@ export function TanarTesztSzerkesztoPage() {
             ...k,
             szoveg: kerdes.szoveg,
             pontszam: kerdes.pontszam,
+            kepFajl: kerdes.kepFajl,
             evfolyamId: kerdes.evfolyamId,
             agazatId: kerdes.agazatId,
             tantargyId: kerdes.tantargyId,
@@ -459,6 +462,7 @@ export function TanarTesztSzerkesztoPage() {
                       <span className="ml-auto text-sm font-semibold text-navy">{k.pontszam} pont</span>
                     </div>
                     <p className="mt-2 text-sm leading-snug text-navy">{k.szoveg}</p>
+                    <KerdesKep fajl={k.kepFajl} className="max-h-40" />
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button type="button" variant="ghost" onClick={() => hozzaad(k)}>
                         Hozzáadás
@@ -497,6 +501,7 @@ export function TanarTesztSzerkesztoPage() {
                         <span className="text-sm font-semibold text-navy">{k.pontszam} pont</span>
                       </div>
                       <p className="mt-1 text-sm leading-snug text-navy">{k.szoveg}</p>
+                      <KerdesKep fajl={k.kepFajl} className="max-h-40" />
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">

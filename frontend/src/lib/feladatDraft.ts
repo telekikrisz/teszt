@@ -5,6 +5,7 @@ export type FeladatDraft = {
   temakorId: string;
   szoveg: string;
   pontszam: string;
+  kepFajl?: string | null;
   valaszok: { szoveg: string; jo: boolean }[];
   updatedAt: number;
 };

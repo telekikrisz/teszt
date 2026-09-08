@@ -1,14 +1,16 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq, exists, ilike, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { bulkKerdesTorlesSchema, createKerdesSchema, kerdesSzuroSchema, updateKerdesSchema } from "@oktateszt/shared";
+import { bulkKerdesTorlesSchema, createKerdesSchema, importKerdesekSchema, kerdesSzuroSchema, updateKerdesSchema } from "@oktateszt/shared";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { agazat, kerdes, tantargy, temakor, tesztkerdes, valasz, evfolyam } from "../db/schema.js";
 import { assertEvfolyamId } from "./evfolyamok.js";
 import { AppError, NotFoundError, ValidationAppError } from "../lib/errors.js";
 import { assertAktivTemakor, assertKerdesKorlatok } from "../lib/bank.js";
+import { assertKerdesKep, mentsKerdesKep } from "../lib/kerdesKep.js";
 import { requireStaff } from "../middleware/requireAuth.js";
+import { importKerdesek } from "../services/kerdesImport.js";
 import type { AppEnv } from "../types.js";
 
 const kerdesKorlatQuerySchema = z.object({
@@ -59,6 +61,7 @@ export const kerdesRoutes = new Hono<AppEnv>()
         kerdesId: kerdes.kerdesId,
         szoveg: kerdes.szoveg,
         pontszam: kerdes.pontszam,
+        kepFajl: kerdes.kepFajl,
         temakorId: kerdes.temakorId,
         temakorNev: temakor.temakorNev,
         tantargyId: tantargy.tantargyId,
@@ -87,6 +90,35 @@ export const kerdesRoutes = new Hono<AppEnv>()
       })),
     });
   })
+  .post("/kep", async (c) => {
+    const body = await c.req.parseBody();
+    const file = body.kep;
+    if (!file || typeof file === "string" || typeof (file as File).arrayBuffer !== "function") {
+      throw new ValidationAppError("Válassz egy képfájlt (JPG, PNG, GIF vagy WebP).");
+    }
+    const kepFajl = await mentsKerdesKep(file as File);
+    return c.json({ kepFajl }, 201);
+  })
+  .post("/import", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    const parsed = importKerdesekSchema.safeParse(body);
+    if (!parsed.success) {
+      const hibak = parsed.error.issues.map((issue) => {
+        const idx = issue.path[0] === "kerdesek" && typeof issue.path[1] === "number" ? issue.path[1] : null;
+        const sor =
+          idx !== null && body && typeof body === "object" && "kerdesek" in body
+            ? (body as { kerdesek?: { sor?: number }[] }).kerdesek?.[idx]?.sor
+            : undefined;
+        return sor ? `${sor}. sor: ${issue.message}` : issue.message;
+      });
+      throw new ValidationAppError(
+        hibak.length ? `Az import fájl hibás:\n${[...new Set(hibak)].join("\n")}` : "Az import fájl hibás.",
+        hibak,
+      );
+    }
+    const result = await importKerdesek(parsed.data);
+    return c.json({ ok: true, ...result }, 201);
+  })
   .get("/:id", async (c) => {
     return c.json({ kerdes: await loadKerdes(c.req.param("id"), true) });
   })
@@ -94,6 +126,7 @@ export const kerdesRoutes = new Hono<AppEnv>()
     const input = c.req.valid("json");
     await assertEvfolyamId(input.evfolyamId);
     await assertAktivTemakor(input.temakorId);
+    await assertKerdesKep(input.kepFajl ?? null);
     const created = await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(kerdes)
@@ -102,6 +135,7 @@ export const kerdesRoutes = new Hono<AppEnv>()
           temakorId: input.temakorId,
           szoveg: input.szoveg,
           pontszam: input.pontszam,
+          kepFajl: input.kepFajl ?? null,
         })
         .returning();
       if (!row) throw new ValidationAppError("A kérdés mentése sikertelen.");
@@ -123,6 +157,7 @@ export const kerdesRoutes = new Hono<AppEnv>()
     await assertEvfolyamId(input.evfolyamId);
     await assertAktivTemakor(input.temakorId);
     await assertKerdesKorlatok(input.temakorId, korlatok);
+    await assertKerdesKep(input.kepFajl ?? null);
     const existing = await db
       .select({ kerdesId: kerdes.kerdesId, archivaltAt: kerdes.archivaltAt })
       .from(kerdes)
@@ -138,6 +173,7 @@ export const kerdesRoutes = new Hono<AppEnv>()
           temakorId: input.temakorId,
           szoveg: input.szoveg,
           pontszam: input.pontszam,
+          kepFajl: input.kepFajl ?? null,
         })
         .where(eq(kerdes.kerdesId, id));
       await tx.delete(valasz).where(eq(valasz.kerdesId, id));
@@ -203,6 +239,7 @@ async function loadKerdes(id: string, allowArchived = false) {
       kerdesId: kerdes.kerdesId,
       szoveg: kerdes.szoveg,
       pontszam: kerdes.pontszam,
+      kepFajl: kerdes.kepFajl,
       temakorId: kerdes.temakorId,
       temakorNev: temakor.temakorNev,
       tantargyId: tantargy.tantargyId,

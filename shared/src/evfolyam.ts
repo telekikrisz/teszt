@@ -7,6 +7,31 @@ export const MAX_EVFOLYAM_ERTEK = 13 as const;
 
 export const evfolyamIdSchema = z.string().uuid("Érvénytelen évfolyam azonosító.");
 
+const NEV_KULCS_EKEZET = /[\u0300-\u036f]/g;
+
+/** Katalógusnevek összevetése: kis-nagybetű és ékezet nélkül, felesleges szóköz nélkül. */
+export function katalogusNevKulcs(nev: string): string {
+  return nev
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("hu")
+    .normalize("NFD")
+    .replace(NEV_KULCS_EKEZET, "");
+}
+
+/** Excel/CSV évfolyam mező: „11”, „11.”, „11. évfolyam”. */
+export function parseEvfolyamMezo(value: string): { ok: true; ertek: EvfolyamErtek } | { ok: false; uzenet: string } {
+  const raw = value.trim();
+  if (!raw) return { ok: false, uzenet: "Az évfolyam megadása kötelező (pl. 11)." };
+  const match = raw.match(/(\d+)/);
+  if (!match) return { ok: false, uzenet: `Az évfolyam szám legyen (pl. 11), most: „${raw}”.` };
+  const n = Number(match[1]);
+  if (!(EVFOLYAM_ERETEKEK as readonly number[]).includes(n)) {
+    return { ok: false, uzenet: `A ${n}. évfolyam nem használható (csak 9–13.).` };
+  }
+  return { ok: true, ertek: n as EvfolyamErtek };
+}
+
 /** Osztáynévből (pl. „13.D”, „11.C”) kiolvasott évfolyam-szám. */
 export function evfolyamOsztalybol(osztaly: string | null | undefined): EvfolyamErtek | null {
   if (!osztaly?.trim()) return null;

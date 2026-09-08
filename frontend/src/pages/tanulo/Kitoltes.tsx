@@ -16,6 +16,7 @@ type KitoltesKerdes = {
   vizsgaKerdesId: string;
   index: number;
   szoveg: string;
+  kepFajl?: string | null;
   pontszam: number;
   kapottPont: number | null;
   joValaszDb: number;
@@ -326,6 +327,7 @@ export function TanuloKitoltesPage() {
           <div className="text-xs uppercase tracking-wide text-clay">{kerdes.index}. kérdés</div>
           <KerdesCim
             szoveg={kerdes.szoveg}
+            kepFajl={kerdes.kepFajl}
             joValaszDb={attekintes ? 0 : kerdes.joValaszDb}
             className="mt-2 font-display text-xl text-navy"
           />

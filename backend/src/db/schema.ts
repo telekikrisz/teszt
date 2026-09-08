@@ -98,6 +98,7 @@ export const kerdes = pgTable(
       .references(() => evfolyam.evfolyamId, { onDelete: "restrict" }),
     szoveg: text("szoveg").notNull(),
     pontszam: integer("pontszam").notNull(),
+    kepFajl: text("kep_fajl"),
     archivaltAt,
   },
   (table) => [
@@ -277,6 +278,7 @@ export const vizsgaKerdes = pgTable(
       .references(() => vizsga.vizsgaId, { onDelete: "cascade" }),
     szoveg: text("szoveg").notNull(),
     pontszam: integer("pontszam").notNull(),
+    kepFajl: text("kep_fajl"),
   },
   (table) => [index("idx_vizsga_kerdes_vizsga").on(table.vizsgaId)],
 );
@@ -373,12 +375,14 @@ export const xpTetel = pgTable(
     esemenyKod: text("esemeny_kod").notNull(),
     cimke: text("cimke").notNull(),
     pont: integer("pont").notNull(),
+    tantargyId: uuid("tantargy_id").references(() => tantargy.tantargyId, { onDelete: "restrict" }),
     letrehozvaAt: timestamp("letrehozva_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
   },
   (table) => [
     index("idx_xp_tetel_tanulo").on(table.tanuloId),
+    index("idx_xp_tetel_tanulo_tantargy").on(table.tanuloId, table.tantargyId),
     check("chk_xp_tetel_pont", sql`${table.pont} <> 0`),
   ],
 );
@@ -390,6 +394,7 @@ export const xpJegy = pgTable(
     tanuloId: uuid("tanulo_id")
       .notNull()
       .references(() => felhasznalo.felhasznaloId, { onDelete: "restrict" }),
+    tantargyId: uuid("tantargy_id").references(() => tantargy.tantargyId, { onDelete: "restrict" }),
     ertek: integer("ertek").notNull(),
     letrehozvaAt: timestamp("letrehozva_at", { withTimezone: true, mode: "date" })
       .notNull()
@@ -397,6 +402,7 @@ export const xpJegy = pgTable(
   },
   (table) => [
     index("idx_xp_jegy_tanulo").on(table.tanuloId),
+    index("idx_xp_jegy_tanulo_tantargy").on(table.tanuloId, table.tantargyId),
     check("chk_xp_jegy_ertek", sql`${table.ertek} IN (1, 5)`),
   ],
 );
@@ -525,6 +531,7 @@ export const xpTetelRelations = relations(xpTetel, ({ one }) => ({
     references: [felhasznalo.felhasznaloId],
     relationName: "xpTetelRogzito",
   }),
+  tantargy: one(tantargy, { fields: [xpTetel.tantargyId], references: [tantargy.tantargyId] }),
 }));
 
 export const xpJegyRelations = relations(xpJegy, ({ one }) => ({
@@ -532,6 +539,7 @@ export const xpJegyRelations = relations(xpJegy, ({ one }) => ({
     fields: [xpJegy.tanuloId],
     references: [felhasznalo.felhasznaloId],
   }),
+  tantargy: one(tantargy, { fields: [xpJegy.tantargyId], references: [tantargy.tantargyId] }),
 }));
 
 // ---------------------------------------------------------------------------

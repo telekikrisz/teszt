@@ -117,6 +117,7 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
       vizsgaKerdesId: vizsgaKerdes.vizsgaKerdesId,
       szoveg: vizsgaKerdes.szoveg,
       pontszam: vizsgaKerdes.pontszam,
+      kepFajl: vizsgaKerdes.kepFajl,
     })
     .from(vizsgaKerdes)
     .where(eq(vizsgaKerdes.vizsgaId, fejlec.vizsgaId));
@@ -219,6 +220,7 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
         vizsgaKerdesId: k.vizsgaKerdesId,
         index: index + 1,
         szoveg: k.szoveg,
+        kepFajl: k.kepFajl,
         pontszam: k.pontszam,
         kapottPont: nezettMod === "attekintes" ? (pontByKerdes.get(k.vizsgaKerdesId) ?? 0) : null,
         joValaszDb,

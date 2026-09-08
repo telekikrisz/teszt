@@ -64,6 +64,7 @@ export async function createVizsgaFromTeszt(input: CreateVizsgaInput) {
       kerdesId: kerdes.kerdesId,
       szoveg: kerdes.szoveg,
       pontszam: kerdes.pontszam,
+      kepFajl: kerdes.kepFajl,
       archivaltAt: kerdes.archivaltAt,
     })
     .from(kerdes)
@@ -160,6 +161,7 @@ export async function createVizsgaFromTeszt(input: CreateVizsgaInput) {
           vizsgaId: created.vizsgaId,
           szoveg: k.szoveg,
           pontszam: k.pontszam,
+          kepFajl: k.kepFajl,
         })
         .returning({ vizsgaKerdesId: vizsgaKerdes.vizsgaKerdesId });
 
