@@ -451,10 +451,14 @@ export function Modal({
   return createPortal(shellClass ? <div className={shellClass}>{content}</div> : content, document.body);
 }
 
-export function ErrorText({ error }: { error: unknown }) {
+export function ErrorText({ error, className = "" }: { error: unknown; className?: string }) {
   if (!error) return null;
   const message = error instanceof Error ? error.message : "Hiba történt.";
-  return <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">{message}</p>;
+  return (
+    <p className={`whitespace-pre-line rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 ${className}`}>
+      {message}
+    </p>
+  );
 }
 
 export function Empty({ children }: { children: ReactNode }) {

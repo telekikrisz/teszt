@@ -33,8 +33,18 @@ describe("createXpTetelSchema", () => {
   it("elutasítja a 0 pontot", () => {
     const result = createXpTetelSchema.safeParse({
       tanuloId: "11111111-1111-1111-1111-111111111111",
+      tantargyId: "22222222-2222-4222-8222-222222222222",
       esemenyKod: "zavaras",
       pont: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("tantárgy nélkül elutasítja a tételt", () => {
+    const result = createXpTetelSchema.safeParse({
+      tanuloId: "11111111-1111-1111-1111-111111111111",
+      esemenyKod: "zavaras",
+      pont: -10,
     });
     expect(result.success).toBe(false);
   });
@@ -42,6 +52,7 @@ describe("createXpTetelSchema", () => {
   it("elfogadja a szereptévesztést −5-tel", () => {
     const result = createXpTetelSchema.safeParse({
       tanuloId: "11111111-1111-1111-1111-111111111111",
+      tantargyId: "22222222-2222-4222-8222-222222222222",
       esemenyKod: "szereptevesztes",
       pont: -5,
     });

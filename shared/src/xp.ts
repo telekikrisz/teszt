@@ -103,6 +103,7 @@ export function xpBevaltas(egyenleg: number): { jegyek: XpJegyErtek[]; maradek: 
 
 export const createXpTetelSchema = z.object({
   tanuloId: z.string().uuid("Érvénytelen tanuló azonosító."),
+  tantargyId: z.string().uuid("Válassz tantárgyat az XP-hez."),
   esemenyKod: z.enum(XP_ESEMENY_KODOK, {
     errorMap: () => ({ message: "Ismeretlen XP esemény." }),
   }),

@@ -22,6 +22,7 @@ export const xpRoutes = new Hono<AppEnv>()
     const body = c.req.valid("json");
     const result = await rogzitXpTetel({
       tanuloId: body.tanuloId,
+      tantargyId: body.tantargyId,
       esemenyKod: body.esemenyKod,
       pont: body.pont,
       rogzitoId: user.id,

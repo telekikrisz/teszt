@@ -6,9 +6,12 @@ import {
   tarhelyQuery,
 } from "../../components/AllapotJeloloSzuro";
 import { BankSzuro } from "../../components/BankSzuro";
+import { KerdesImportModal } from "../../components/KerdesImportModal";
 import { Badge, AgazatBadge, Button, Empty, ErrorText, Input, PageHeader } from "../../components/ui";
 import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useBankSzuro, evfolyamOpcioi } from "../../lib/bank";
+import { loadFeladatSzuroPrefs, writeFeladatSzuroPrefsToParams } from "../../lib/feladatSzuroPrefs";
 import { useApi } from "../../lib/useApi";
 
 type KerdesLista = {
@@ -52,6 +55,7 @@ function olvasKezdoListaSearch(searchParams: URLSearchParams, base: string): URL
 export function TanarFeladatokPage() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const base = feladatokBase(pathname);
   const isAdmin = pathname.startsWith("/admin");
@@ -77,6 +81,7 @@ export function TanarFeladatokPage() {
   const [kijeloltIds, setKijeloltIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<unknown>(null);
   const [actionPending, setActionPending] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const listaSearch = useMemo(() => {
     const params = new URLSearchParams(szuro.query);
@@ -116,7 +121,10 @@ export function TanarFeladatokPage() {
   }, [kerdesQuery]);
 
   function ujFeladatUrl() {
-    const params = new URLSearchParams(szuro.query);
+    const params = writeFeladatSzuroPrefsToParams(
+      new URLSearchParams(szuro.query),
+      user ? loadFeladatSzuroPrefs(user.id) : null,
+    );
     params.set("returnSearch", listaSearch);
     return `${base}/uj?${params.toString()}`;
   }
@@ -190,7 +198,24 @@ export function TanarFeladatokPage() {
 
   return (
     <div>
-      <PageHeader title="Feladatok" actions={<Button onClick={() => navigate(ujFeladatUrl())}>Új feladat</Button>} />
+      <PageHeader
+        title="Feladatok"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setActionError(null);
+                setImportOpen(true);
+              }}
+            >
+              Importálás
+            </Button>
+            <Button onClick={() => navigate(ujFeladatUrl())}>Új feladat</Button>
+          </div>
+        }
+      />
 
       <BankSzuro
         evfolyamId={szuro.evfolyamId}
@@ -349,6 +374,14 @@ export function TanarFeladatokPage() {
           </article>
         ))}
       </div>
+
+      {importOpen ? (
+        <KerdesImportModal
+          theme={isAdmin ? "admin" : "tanar"}
+          onClose={() => setImportOpen(false)}
+          onDone={() => lista.reload()}
+        />
+      ) : null}
     </div>
   );
 }
