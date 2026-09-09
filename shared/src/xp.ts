@@ -101,7 +101,7 @@ export function xpBevaltas(egyenleg: number): { jegyek: XpJegyErtek[]; maradek: 
   return { jegyek, maradek: x };
 }
 
-export const createXpTetelSchema = z.object({
+export const createXpKapSchema = z.object({
   tanuloId: z.string().uuid("Érvénytelen tanuló azonosító."),
   tantargyId: z.string().uuid("Válassz tantárgyat az XP-hez."),
   esemenyKod: z.enum(XP_ESEMENY_KODOK, {
@@ -115,8 +115,11 @@ export const createXpTetelSchema = z.object({
     .refine((n) => n !== 0, "A pontszám nem lehet 0."),
 });
 
+export const createXpTetelSchema = createXpKapSchema;
+
 export const xpOsztalySzuroSchema = z.object({
   osztaly: z.string().trim().min(1, "Válassz osztályt.").max(20),
 });
 
-export type CreateXpTetelInput = z.infer<typeof createXpTetelSchema>;
+export type CreateXpKapInput = z.infer<typeof createXpKapSchema>;
+export type CreateXpTetelInput = CreateXpKapInput;

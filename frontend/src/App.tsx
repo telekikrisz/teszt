@@ -12,12 +12,12 @@ import { TanarTesztekPage } from "./pages/tanar/Tesztek";
 import { TanarVizsgakPage, TanarVizsgaReszletekPage } from "./pages/tanar/Vizsgak";
 import { TanarVizsgaSzerkesztoPage } from "./pages/tanar/VizsgaSzerkeszto";
 import { TanarTesztSzerkesztoPage } from "./pages/tanar/TesztSzerkeszto";
+import { TanarXpPage } from "./pages/tanar/Xp";
 import { TanuloEredmenyekPage } from "./pages/tanulo/Eredmenyek";
 import { TanuloKitoltesPage } from "./pages/tanulo/Kitoltes";
 import { TanuloVizsgakPage } from "./pages/tanulo/Vizsgak";
 import { AdminFelhasznalokPage } from "./pages/admin/Felhasznalok";
 import { AdminAlapadatokPage } from "./pages/admin/Alapadatok";
-import { AdminXpPage } from "./pages/admin/Xp";
 import { TanuloXpPage } from "./pages/tanulo/Xp";
 
 function Guard({
@@ -70,7 +70,6 @@ export function App() {
           <Route path="vizsgak/felfuggesztett" element={<TanarVizsgakPage allapotSzuro="felfuggesztett" />} />
           <Route path="vizsgak/lezart" element={<TanarVizsgakPage allapotSzuro="lezart" />} />
           <Route path="vizsgak/:id" element={<TanarVizsgaReszletekPage />} />
-          <Route path="xp" element={<AdminXpPage />} />
           <Route path="beallitasok" element={<BeallitasokPage />} />
         </Route>
         <Route
@@ -93,6 +92,7 @@ export function App() {
           <Route path="vizsgak/felfuggesztett" element={<TanarVizsgakPage allapotSzuro="felfuggesztett" />} />
           <Route path="vizsgak/lezart" element={<TanarVizsgakPage allapotSzuro="lezart" />} />
           <Route path="vizsgak/:id" element={<TanarVizsgaReszletekPage />} />
+          <Route path="xp" element={<TanarXpPage />} />
           <Route path="beallitasok" element={<BeallitasokPage />} />
           <Route index element={<Navigate to="tesztek" replace />} />
         </Route>

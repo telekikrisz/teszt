@@ -1,6 +1,6 @@
 import { formatXpEgyenleg, formatXpPont } from "@oktateszt/shared";
 import { Empty, ErrorText, PageHeader } from "../../components/ui";
-import { api, formatDateNap } from "../../lib/api";
+import { api, formatDatePerc } from "../../lib/api";
 import { useApi } from "../../lib/useApi";
 
 type XpJegy = {
@@ -10,12 +10,13 @@ type XpJegy = {
   letrehozvaAt: string;
 };
 
-type XpTetel = {
-  xpTetelId: string;
-  tantargyId: string | null;
+type XpKap = {
+  xpKapId: string;
+  tantargyId: string;
   tantargyNev: string;
   cimke: string;
   pont: number;
+  tanarNev: string;
   letrehozvaAt: string;
 };
 
@@ -30,7 +31,7 @@ type TanuloXp = {
   nev: string;
   osztaly: string;
   tantargyak: TantargyXp[];
-  tetelek: XpTetel[];
+  kapok: XpKap[];
 };
 
 export function TanuloXpPage() {
@@ -53,7 +54,7 @@ export function TanuloXpPage() {
           ) : (
             <div className="grid gap-4">
               {xp.tantargyak.map((ta) => {
-                const tetelek = xp.tetelek.filter((t) => (t.tantargyId ?? "") === (ta.tantargyId ?? ""));
+                const kapok = xp.kapok.filter((t) => t.tantargyId === (ta.tantargyId ?? ""));
                 return (
                   <section
                     key={ta.tantargyId ?? "nincs"}
@@ -76,18 +77,21 @@ export function TanuloXpPage() {
                             >
                               {j.felirat}
                             </span>
-                            <span className="ml-2 text-xs text-ink/55">{formatDateNap(j.letrehozvaAt)}</span>
+                            <span className="ml-2 text-xs text-ink/55">{formatDatePerc(j.letrehozvaAt)}</span>
                           </li>
                         ))}
                       </ul>
                     ) : null}
-                    {tetelek.length > 0 ? (
-                      <ul className="mt-4 grid gap-2 border-t border-rule pt-3">
-                        {tetelek.map((t) => (
-                          <li key={t.xpTetelId} className="flex flex-wrap items-baseline justify-between gap-2">
+                    {kapok.length > 0 ? (
+                      <ul className="mt-4 grid gap-3 border-t border-rule pt-3">
+                        {kapok.map((t) => (
+                          <li key={t.xpKapId} className="flex flex-wrap items-baseline justify-between gap-2">
                             <div>
                               <div className="text-sm font-medium text-navy">{t.cimke}</div>
-                              <div className="text-xs text-ink/55">{formatDateNap(t.letrehozvaAt)}</div>
+                              <div className="text-xs text-ink/55">
+                                {t.tantargyNev} · {t.tanarNev}
+                              </div>
+                              <div className="text-xs text-ink/55">{formatDatePerc(t.letrehozvaAt)}</div>
                             </div>
                             <div
                               className={`font-display text-lg font-semibold tabular-nums ${

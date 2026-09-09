@@ -88,6 +88,19 @@ export function formatDateNap(value: string | Date | null | undefined): string {
   return new Intl.DateTimeFormat("hu-HU", { dateStyle: "long" }).format(new Date(value));
 }
 
+/** Év, hónap, nap, óra, perc (pl. 2026. 09. 07. 08:36). */
+export function formatDatePerc(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("hu-HU", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
 export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return `${Math.round(value)}%`;

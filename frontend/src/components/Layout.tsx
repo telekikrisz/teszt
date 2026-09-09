@@ -9,6 +9,7 @@ const tanarLinks = [
   { to: "/tanar/feladatok", label: "Feladatok" },
   { to: "/tanar/tesztek", label: "Tesztek" },
   { to: "/tanar/vizsgak", label: "Vizsgák" },
+  { to: "/tanar/xp", label: "XP" },
 ];
 
 const tanarVizsgaAlmenu = [
@@ -257,7 +258,6 @@ export function AdminLayout() {
     { to: "/admin/feladatok", label: "Feladatok" },
     { to: "/admin/tesztek", label: "Tesztek" },
     { to: "/admin/vizsgak", label: "Vizsgák" },
-    { to: "/admin/xp", label: "XP gyűjtés" },
   ];
 
   const adminVizsgaAlmenu = [

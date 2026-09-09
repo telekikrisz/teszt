@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createXpTetelSchema, xpBevaltas, xpEsemeny } from "@oktateszt/shared";
+import { createXpKapSchema, xpBevaltas, xpEsemeny } from "@oktateszt/shared";
 
 describe("xpBevaltas", () => {
   it("50 XP → egy jeles, maradék 0", () => {
@@ -29,9 +29,9 @@ describe("xpBevaltas", () => {
   });
 });
 
-describe("createXpTetelSchema", () => {
+describe("createXpKapSchema", () => {
   it("elutasítja a 0 pontot", () => {
-    const result = createXpTetelSchema.safeParse({
+    const result = createXpKapSchema.safeParse({
       tanuloId: "11111111-1111-1111-1111-111111111111",
       tantargyId: "22222222-2222-4222-8222-222222222222",
       esemenyKod: "zavaras",
@@ -41,7 +41,7 @@ describe("createXpTetelSchema", () => {
   });
 
   it("tantárgy nélkül elutasítja a tételt", () => {
-    const result = createXpTetelSchema.safeParse({
+    const result = createXpKapSchema.safeParse({
       tanuloId: "11111111-1111-1111-1111-111111111111",
       esemenyKod: "zavaras",
       pont: -10,
@@ -50,7 +50,7 @@ describe("createXpTetelSchema", () => {
   });
 
   it("elfogadja a szereptévesztést −5-tel", () => {
-    const result = createXpTetelSchema.safeParse({
+    const result = createXpKapSchema.safeParse({
       tanuloId: "11111111-1111-1111-1111-111111111111",
       tantargyId: "22222222-2222-4222-8222-222222222222",
       esemenyKod: "szereptevesztes",

@@ -10,6 +10,8 @@ coverage
 .vite
 uploads
 backend/uploads
+dokumentáció/*dump*.sql
+dokumentáció/oktateszt-mysql-dump-*.sql
 .idea
 .vscode/*
 !.vscode/extensions.json

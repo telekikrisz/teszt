@@ -1,13 +1,16 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { createXpTetelSchema, XP_ESEMENYEK, xpOsztalySzuroSchema } from "@oktateszt/shared";
-import { listXpOsztalyok, listXpTanulok, rogzitXpTetel } from "../services/xpFlow.js";
-import { getUser, requireAdmin } from "../middleware/requireAuth.js";
+import { createXpKapSchema, xpOsztalySzuroSchema } from "@oktateszt/shared";
+import { listXpEsemenyek, listXpOsztalyok, listXpTanulok, rogzitXpKap } from "../services/xpFlow.js";
+import { getUser, requireTanar } from "../middleware/requireAuth.js";
 import type { AppEnv } from "../types.js";
 
 export const xpRoutes = new Hono<AppEnv>()
-  .use("*", requireAdmin)
-  .get("/esemenyek", (c) => c.json({ esemenyek: XP_ESEMENYEK }))
+  .use("*", requireTanar)
+  .get("/esemenyek", async (c) => {
+    const esemenyek = await listXpEsemenyek();
+    return c.json({ esemenyek });
+  })
   .get("/osztalyok", async (c) => {
     const osztalyok = await listXpOsztalyok();
     return c.json({ osztalyok });
@@ -17,10 +20,10 @@ export const xpRoutes = new Hono<AppEnv>()
     const tanulok = await listXpTanulok(osztaly);
     return c.json({ tanulok });
   })
-  .post("/tetel", zValidator("json", createXpTetelSchema), async (c) => {
+  .post("/kap", zValidator("json", createXpKapSchema), async (c) => {
     const user = getUser(c);
     const body = c.req.valid("json");
-    const result = await rogzitXpTetel({
+    const result = await rogzitXpKap({
       tanuloId: body.tanuloId,
       tantargyId: body.tantargyId,
       esemenyKod: body.esemenyKod,

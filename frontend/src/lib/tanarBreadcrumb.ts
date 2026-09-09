@@ -54,5 +54,9 @@ export function useTanarBreadcrumbs(): TanarCrumb[] {
     return crumbs;
   }
 
+  if (pathname.startsWith("/tanar/xp")) {
+    return [{ label: "Tanári felület", to: TANAR_HOME }, { label: "XP" }];
+  }
+
   return [{ label: "Tanári felület" }];
 }
