@@ -66,6 +66,7 @@ export const createVizsgaSchema = z
     idoablakVege: z.coerce.date(),
     perc: z.number().int().min(1, "Legalább 1 perc.").max(300, "Legfeljebb 300 perc."),
     tanulok: z.array(vizsgaTanuloInputSchema).min(1, "Legalább egy tanulót válassz."),
+    jegyAdando: z.boolean().default(false),
   })
   .superRefine((data, ctx) => {
     const hiba = validateVizsgaIdoablak(data.idoablakEleje, data.idoablakVege);
@@ -77,6 +78,40 @@ export const createVizsgaSchema = z
       });
     }
   });
+
+export type VizsgaJegyErtek = 1 | 2 | 3 | 4 | 5;
+
+export const VIZSGA_JEGY_FELIRAT: Record<VizsgaJegyErtek, string> = {
+  1: "elégtelen",
+  2: "elégséges",
+  3: "közepes",
+  4: "jó",
+  5: "jeles",
+};
+
+/** 80%→5, 70%→4, 60%→3, 50%→2, 50% alatt → 1. */
+export function vizsgaJegySzazalekbol(szazalek: number): {
+  ertek: VizsgaJegyErtek;
+  felirat: string;
+} {
+  const ertek: VizsgaJegyErtek = szazalek >= 80 ? 5 : szazalek >= 70 ? 4 : szazalek >= 60 ? 3 : szazalek >= 50 ? 2 : 1;
+  return { ertek, felirat: VIZSGA_JEGY_FELIRAT[ertek] };
+}
+
+export function vizsgaJegyMezok(
+  jegyAdando: boolean,
+  szazalek: number | null | undefined,
+): { jegy: VizsgaJegyErtek | null; jegyFelirat: string | null } {
+  if (!jegyAdando || szazalek === null || szazalek === undefined) {
+    return { jegy: null, jegyFelirat: null };
+  }
+  const g = vizsgaJegySzazalekbol(szazalek);
+  return { jegy: g.ertek, jegyFelirat: g.felirat };
+}
+
+export function formatVizsgaJegy(ertek: number, felirat: string): string {
+  return `${ertek} (${felirat})`;
+}
 
 export type VizsgaSzuro = z.infer<typeof vizsgaSzuroSchema>;
 export type CreateVizsgaInput = z.infer<typeof createVizsgaSchema>;

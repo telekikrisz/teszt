@@ -6,6 +6,7 @@ import {
   VIZSGA_ARCHIV_ALLAPOTOK,
   bulkVizsgaTorlesSchema,
   createVizsgaSchema,
+  vizsgaJegyMezok,
   vizsgaSzuroSchema,
   vizsgaTanuloHosszabbitasSchema,
   type VizsgaAllapot,
@@ -88,6 +89,7 @@ export const vizsgaRoutes = new Hono<AppEnv>()
         idoablakEleje: vizsga.idoablakEleje,
         idoablakVege: vizsga.idoablakVege,
         perc: vizsga.perc,
+        jegyAdando: vizsga.jegyAdando,
         letrehozvaAt: vizsga.letrehozvaAt,
         archivaltAt: vizsga.archivaltAt,
         allapot: vizsga.allapot,
@@ -126,7 +128,7 @@ export const vizsgaRoutes = new Hono<AppEnv>()
     const vizsgaId = c.req.param("id");
     await syncVizsgaKitoltesek(vizsgaId);
     const meta = await loadVizsgaMeta(vizsgaId);
-    const eredmenyek = await loadEredmenyek(vizsgaId, meta.maxPont);
+    const eredmenyek = await loadEredmenyek(vizsgaId, meta.maxPont, meta.jegyAdando);
     return c.json({ vizsga: { ...meta, eredmenyek } });
   })
   .post("/", zValidator("json", createVizsgaSchema), async (c) => {
@@ -210,7 +212,7 @@ export const vizsgaRoutes = new Hono<AppEnv>()
     if (!updated) throw new NotFoundError("A vizsga nem található.");
 
     const meta = await loadVizsgaMeta(id);
-    const eredmenyek = await loadEredmenyek(id, meta.maxPont);
+    const eredmenyek = await loadEredmenyek(id, meta.maxPont, meta.jegyAdando);
     return c.json({ vizsga: { ...meta, eredmenyek } });
   })
   .post("/torles", zValidator("json", bulkVizsgaTorlesSchema), async (c) => {
@@ -262,6 +264,7 @@ async function loadVizsgaMeta(vizsgaId: string) {
       idoablakEleje: vizsga.idoablakEleje,
       idoablakVege: vizsga.idoablakVege,
       perc: vizsga.perc,
+      jegyAdando: vizsga.jegyAdando,
       letrehozvaAt: vizsga.letrehozvaAt,
       archivaltAt: vizsga.archivaltAt,
       allapot: vizsga.allapot,
@@ -291,7 +294,7 @@ async function loadVizsgaMeta(vizsgaId: string) {
   };
 }
 
-async function loadEredmenyek(vizsgaId: string, maxPont: number) {
+async function loadEredmenyek(vizsgaId: string, maxPont: number, jegyAdando: boolean) {
   const rows = await db
     .select({
       tanuloId: vizsgazik.tanuloId,
@@ -317,18 +320,23 @@ async function loadEredmenyek(vizsgaId: string, maxPont: number) {
     .where(eq(vizsgazik.vizsgaId, vizsgaId))
     .orderBy(felhasznalo.nev);
 
-  return rows.map((r) => ({
-    tanuloId: r.tanuloId,
-    tanuloNev: r.tanuloNev,
-    osztaly: r.osztaly ?? "—",
-    hosszabbitasPerc: Number(r.hosszabbitasPerc),
-    allapot: r.kitoltesId ? r.allapot : ("nem_kezdte" as const),
-    elkezdveAt: r.elkezdveAt,
-    bekuldveAt: r.bekuldveAt,
-    osszPont: r.kitoltesId ? Number(r.osszPont) : null,
-    maxPont: r.kitoltesId ? maxPont : null,
-    szazalek:
-      r.kitoltesId && maxPont > 0 ? Math.round((Number(r.osszPont) / maxPont) * 100) : null,
-    kitoltesId: r.kitoltesId,
-  }));
+  return rows.map((r) => {
+    const kesz = r.allapot === "bekuldve" || r.allapot === "lejart";
+    const szazalek =
+      r.kitoltesId && maxPont > 0 ? Math.round((Number(r.osszPont) / maxPont) * 100) : null;
+    return {
+      tanuloId: r.tanuloId,
+      tanuloNev: r.tanuloNev,
+      osztaly: r.osztaly ?? "—",
+      hosszabbitasPerc: Number(r.hosszabbitasPerc),
+      allapot: r.kitoltesId ? r.allapot : ("nem_kezdte" as const),
+      elkezdveAt: r.elkezdveAt,
+      bekuldveAt: r.bekuldveAt,
+      osszPont: r.kitoltesId ? Number(r.osszPont) : null,
+      maxPont: r.kitoltesId ? maxPont : null,
+      szazalek,
+      ...vizsgaJegyMezok(Boolean(jegyAdando) && Boolean(kesz), kesz ? szazalek : null),
+      kitoltesId: r.kitoltesId,
+    };
+  });
 }

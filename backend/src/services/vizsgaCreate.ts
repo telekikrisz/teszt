@@ -149,6 +149,7 @@ export async function createVizsgaFromTeszt(input: CreateVizsgaInput) {
         idoablakEleje: input.idoablakEleje,
         idoablakVege: input.idoablakVege,
         perc: input.perc,
+        jegyAdando: input.jegyAdando ?? false,
       })
       .returning({ vizsgaId: vizsga.vizsgaId });
 

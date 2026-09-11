@@ -238,6 +238,7 @@ export const vizsga = pgTable(
     idoablakEleje: timestamp("idoablak_eleje", { withTimezone: true, mode: "date" }).notNull(),
     idoablakVege: timestamp("idoablak_vege", { withTimezone: true, mode: "date" }).notNull(),
     perc: integer("perc").notNull(),
+    jegyAdando: boolean("jegy_adando").notNull().default(false),
     allapot: vizsgaAllapotEnum("allapot").notNull().default("kiirt"),
     letrehozvaAt: timestamp("letrehozva_at", { withTimezone: true, mode: "date" })
       .notNull()

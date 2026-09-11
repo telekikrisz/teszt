@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createKerdesSchema, createTesztSchema, evfolyamOsztalybol, importKerdesekSchema, loginSchema, parseEvfolyamMezo, registerSchema } from "@oktateszt/shared";
+import { createKerdesSchema, createTesztSchema, createVizsgaSchema, evfolyamOsztalybol, importKerdesekSchema, loginSchema, parseEvfolyamMezo, registerSchema } from "@oktateszt/shared";
 
 describe("Zod sémák", () => {
   it("osztálynévből évfolyam", () => {
@@ -141,5 +141,28 @@ describe("Zod sémák", () => {
       agazatId: "11111111-1111-1111-1111-111111111111",
     });
     expect(ok.success).toBe(true);
+  });
+
+  it("vizsga kiírásnál a jegyAdando alapból false", () => {
+    const eleje = new Date(Date.now() + 60_000);
+    const vege = new Date(eleje.getTime() + 10 * 60_000);
+    const result = createVizsgaSchema.parse({
+      tesztId: "11111111-1111-1111-1111-111111111111",
+      idoablakEleje: eleje.toISOString(),
+      idoablakVege: vege.toISOString(),
+      perc: 45,
+      tanulok: [{ tanuloId: "22222222-2222-2222-2222-222222222222" }],
+    });
+    expect(result.jegyAdando).toBe(false);
+
+    const withGrade = createVizsgaSchema.parse({
+      tesztId: "11111111-1111-1111-1111-111111111111",
+      idoablakEleje: eleje.toISOString(),
+      idoablakVege: vege.toISOString(),
+      perc: 45,
+      jegyAdando: true,
+      tanulok: [{ tanuloId: "22222222-2222-2222-2222-222222222222" }],
+    });
+    expect(withGrade.jegyAdando).toBe(true);
   });
 });

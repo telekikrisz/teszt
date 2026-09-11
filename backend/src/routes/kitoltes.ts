@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
+import { vizsgaJegyMezok } from "@oktateszt/shared";
 import { db } from "../db/index.js";
 import {
   kitoltes,
@@ -60,6 +61,8 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
       elkezdveAt: kitoltes.elkezdveAt,
       hosszabbitasPerc: kitoltes.hosszabbitasPerc,
       perc: vizsga.perc,
+      jegyAdando: vizsga.jegyAdando,
+      tantargyNev: vizsga.tantargyNev,
       vizsgaAllapot: vizsga.allapot,
       tesztCim: teszt.cim,
     })
@@ -84,9 +87,9 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
     fejlec.allapot === "folyamatban" ? null : await loadOsszPont(kitoltesId);
   const szazalek =
     osszPont !== null && maxPont > 0 ? Math.round((osszPont / maxPont) * 100) : null;
-
-  const visszanezheto = fejlec.vizsgaAllapot === "lezart";
   const kesz = fejlec.allapot === "bekuldve" || fejlec.allapot === "lejart";
+  const jegyMezok = vizsgaJegyMezok(fejlec.jegyAdando && kesz, szazalek);
+  const visszanezheto = fejlec.vizsgaAllapot === "lezart";
   const nezettMod: "kitoltes" | "eredmeny" | "attekintes" = !kesz
     ? "kitoltes"
     : visszanezheto
@@ -108,6 +111,10 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
       osszPont,
       maxPont,
       szazalek,
+      jegyAdando: fejlec.jegyAdando,
+      tantargyNev: fejlec.tantargyNev,
+      jegy: jegyMezok.jegy,
+      jegyFelirat: jegyMezok.jegyFelirat,
       kerdesek: [],
     };
   }
@@ -195,6 +202,10 @@ async function loadKitoltesPayload(kitoltesId: string, tanuloId: string) {
     osszPont,
     maxPont,
     szazalek,
+    jegyAdando: fejlec.jegyAdando,
+    tantargyNev: fejlec.tantargyNev,
+    jegy: jegyMezok.jegy,
+    jegyFelirat: jegyMezok.jegyFelirat,
     kerdesek: kerdesek.map((k, index) => {
       const sorrend = fejlec.valaszSorrendek[k.vizsgaKerdesId] ?? [];
       const valaszokRaw = valaszokByKerdes.get(k.vizsgaKerdesId) ?? [];

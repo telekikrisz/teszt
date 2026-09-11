@@ -96,6 +96,7 @@ export function TanarVizsgaSzerkesztoPage() {
   const [idoVege, setIdoVege] = useState(initialIdo.vege);
   const [perc, setPerc] = useState("");
   const percRef = useRef<HTMLInputElement>(null);
+  const [jegyAdando, setJegyAdando] = useState(false);
   const [osztalySzuro, setOsztalySzuro] = useState("");
   const [kivalasztottTanulok, setKivalasztottTanulok] = useState<Set<string>>(new Set());
   const [extraPerc, setExtraPerc] = useState<Record<string, string>>({});
@@ -219,6 +220,7 @@ export function TanarVizsgaSzerkesztoPage() {
         idoablakEleje: new Date(idoEleje).toISOString(),
         idoablakVege: new Date(idoVege).toISOString(),
         perc: percNum,
+        jegyAdando,
         tanulok: [...kivalasztottTanulok].map((tanuloId) => ({
           tanuloId,
           hosszabbitasPerc: extraPercErtek(tanuloId),
@@ -236,7 +238,7 @@ export function TanarVizsgaSzerkesztoPage() {
     <div>
       <PageHeader
         title="Új vizsga"
-        subtitle="Jóváhagyott teszt kiválasztása, időablak és tanulók megadása."
+        subtitle="Jóváhagyott teszt kiválasztása, időablak, értékelés és tanulók megadása."
         actions={
           <Button variant="ghost" onClick={() => navigate(`${vizsgakBase}/kiirt`)}>
             Mégse
@@ -344,6 +346,22 @@ export function TanarVizsgaSzerkesztoPage() {
             Az időablakot a vizsga kiírásakor ellenőrizzük: a legkorábbi kezdés ne legyen múltbeli, a
             legkésőbbi pedig legalább 5 perccel későbbi legyen.
           </p>
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-rule bg-paper/40 p-3">
+            <input
+              type="checkbox"
+              className="mt-1 rounded border-rule"
+              checked={jegyAdando}
+              onChange={(e) => setJegyAdando(e.target.checked)}
+            />
+            <span>
+              <span className="block font-semibold text-navy">Értékelés (jegy) a vizsgaeredményre</span>
+              <span className="mt-1 block text-sm text-ink/60">
+                Ha bepipálod, a tanulók a teszt tantárgyából jegyet kapnak: 50% → 2 (elégséges), 60% →
+                3 (közepes), 70% → 4 (jó), 80% → 5 (jeles). 50% alatt 1 (elégtelen). Egyébként csak a
+                százalékos eredmény látszik.
+              </span>
+            </span>
+          </label>
         </section>
 
         <section className="rounded-xl border border-rule bg-white p-4 shadow-sm">

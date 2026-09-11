@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { formatVizsgaJegy } from "@oktateszt/shared";
 import { KerdesCim } from "../../components/KerdesCim";
 import { Button, ErrorText, PageHeader } from "../../components/ui";
 import { api, formatPercent } from "../../lib/api";
@@ -38,8 +39,18 @@ type KitoltesPayload = {
   osszPont: number | null;
   maxPont: number | null;
   szazalek: number | null;
+  jegyAdando?: boolean;
+  tantargyNev?: string | null;
+  jegy?: number | null;
+  jegyFelirat?: string | null;
   kerdesek: KitoltesKerdes[];
 };
+
+function jegySzoveg(kitoltes: KitoltesPayload): string | null {
+  if (kitoltes.jegy == null || !kitoltes.jegyFelirat) return null;
+  const jegy = formatVizsgaJegy(kitoltes.jegy, kitoltes.jegyFelirat);
+  return kitoltes.tantargyNev ? `${jegy} · ${kitoltes.tantargyNev}` : jegy;
+}
 
 function attekintesValaszOsztaly(valasz: KitoltesValasz, kijelolt: boolean): string {
   if (valasz.helyesValasztas) {
@@ -91,6 +102,7 @@ function EredmenyPanel({
   onVissza: () => void;
 }) {
   const varakozas = kitoltes.vizsgaAllapot === "kiirt";
+  const jegy = jegySzoveg(kitoltes);
 
   return (
     <div className="mx-auto max-w-lg rounded-xl border border-rule bg-white p-8 text-center shadow-sm">
@@ -99,6 +111,7 @@ function EredmenyPanel({
       {kitoltes.szazalek !== null ? (
         <p className="mt-6 font-display text-5xl font-bold text-navy">{formatPercent(kitoltes.szazalek)}</p>
       ) : null}
+      {jegy ? <p className="mt-2 font-display text-xl font-semibold text-navy">{jegy}</p> : null}
       {kitoltes.osszPont !== null && kitoltes.maxPont !== null ? (
         <p className="mt-2 text-sm text-ink/70">
           {kitoltes.osszPont} / {kitoltes.maxPont} pont
@@ -252,6 +265,7 @@ export function TanuloKitoltesPage() {
   const valaszoltDb = kitoltes.kerdesek.filter((k) => k.kijeloltValaszIds.length > 0).length;
   const modosithato = kitoltes.nezettMod === "kitoltes";
   const attekintes = kitoltes.nezettMod === "attekintes";
+  const attekintesJegy = attekintes ? jegySzoveg(kitoltes) : null;
   const idoMp = hatralevoMp ?? kitoltes.hatralevoMp;
   const utolsoKerdes = current >= kitoltes.kerdesek.length - 1;
 
@@ -285,7 +299,7 @@ export function TanuloKitoltesPage() {
       ) : (
         <PageHeader
           title={kitoltes.vizsgaCim}
-          subtitle={`${formatPercent(kitoltes.szazalek ?? 0)} · ${kitoltes.osszPont ?? 0}/${kitoltes.maxPont ?? 0} pont · áttekintés`}
+          subtitle={`${formatPercent(kitoltes.szazalek ?? 0)}${attekintesJegy ? ` · ${attekintesJegy}` : ""} · ${kitoltes.osszPont ?? 0}/${kitoltes.maxPont ?? 0} pont · áttekintés`}
           actions={
             <Button variant="ghost" onClick={visszaNavigacio}>
               Vissza

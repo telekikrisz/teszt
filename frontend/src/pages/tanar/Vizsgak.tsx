@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  formatVizsgaJegy,
   KITOLTES_ALLAPOT_LABELS,
   VIZSGA_ALLAPOT_LABELS,
   VIZSGA_EXTRA_IDO_MAX_PERC,
@@ -34,6 +35,7 @@ type VizsgaLista = {
   idoablakEleje: string;
   idoablakVege: string;
   perc: number;
+  jegyAdando: boolean;
   tanuloDb: number;
   kitoltesDb: number;
   maxPont: number;
@@ -345,6 +347,7 @@ function VizsgaKartya({
               <AgazatBadge seed={v.agazatNev}>{v.agazatNev}</AgazatBadge>
               {isAdmin ? null : <Badge tone="tantargy">{v.tantargyNev}</Badge>}
               {v.temakorNev ? <Badge tone="temakor">{v.temakorNev}</Badge> : <Badge tone="info">Témazáró</Badge>}
+              {v.jegyAdando ? <Badge tone="good">Értékelés (jegy)</Badge> : null}
               <Badge tone={idoablak.tone}>{idoablak.label}</Badge>
               <Badge tone={allapot.tone}>{allapot.label}</Badge>
             </div>
@@ -524,6 +527,7 @@ export function TanarVizsgaReszletekPage() {
             <AgazatBadge seed={v.agazatNev}>{v.agazatNev}</AgazatBadge>
             {isAdmin ? null : <Badge tone="tantargy">{v.tantargyNev}</Badge>}
             {v.temakorNev ? <Badge tone="temakor">{v.temakorNev}</Badge> : <Badge tone="info">Témazáró</Badge>}
+            {v.jegyAdando ? <Badge tone="good">Értékelés (jegy)</Badge> : null}
             <Badge tone={idoablak.tone}>{idoablak.label}</Badge>
             <Badge tone={allapot.tone}>{allapot.label}</Badge>
           </div>
@@ -532,6 +536,7 @@ export function TanarVizsgaReszletekPage() {
           </p>
           <p className="text-sm text-ink/70">
             Kitöltési idő: {v.perc} perc · Maximum: {v.maxPont} pont · Meghívott tanulók: {v.tanuloDb}
+            {v.jegyAdando ? ` · Jegy a tantárgyból: ${v.tantargyNev}` : ""}
           </p>
         </div>
         {v.allapot === "kiirt" ? (
@@ -559,6 +564,7 @@ export function TanarVizsgaReszletekPage() {
                 <th className="px-4 py-3">Extra idő</th>
                 <th className="px-4 py-3">Pont</th>
                 <th className="px-4 py-3">%</th>
+                {v.jegyAdando ? <th className="px-4 py-3">Jegy</th> : null}
                 <th className="px-4 py-3">Beküldve</th>
               </tr>
             </thead>
@@ -633,6 +639,13 @@ export function TanarVizsgaReszletekPage() {
                     <td className="px-4 py-3 tabular-nums">
                       {e.allapot === "bekuldve" || e.allapot === "lejart" ? formatPercent(e.szazalek) : "—"}
                     </td>
+                    {v.jegyAdando ? (
+                      <td className="px-4 py-3">
+                        {e.jegy != null && e.jegyFelirat
+                          ? `${formatVizsgaJegy(e.jegy, e.jegyFelirat)} · ${v.tantargyNev}`
+                          : "—"}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3">
                       {e.allapot === "bekuldve" && e.bekuldveAt ? (
                         <span className="font-medium text-moss">{formatDate(e.bekuldveAt)}</span>
@@ -694,5 +707,7 @@ type EredmenySor = {
   osszPont: number | null;
   maxPont: number | null;
   szazalek: number | null;
+  jegy: number | null;
+  jegyFelirat: string | null;
   bekuldveAt: string | null;
 };

@@ -17,6 +17,7 @@
     "db:migrate-kerdes-kep": "tsx src/db/migrate-kerdes-kep.ts",
     "db:migrate-xp-tantargy": "tsx src/db/migrate-xp-tantargy.ts",
     "db:migrate-xp-esemeny": "tsx src/db/migrate-xp-esemeny.ts",
+    "db:migrate-vizsga-jegy": "tsx src/db/migrate-vizsga-jegy.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:seed-feladatok": "tsx src/db/seed-feladatok.ts",
     "test": "vitest run",

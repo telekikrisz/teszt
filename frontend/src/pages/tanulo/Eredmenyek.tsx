@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { formatVizsgaJegy } from "@oktateszt/shared";
 import { BankSzuro } from "../../components/BankSzuro";
 import { Badge, Button, Empty, ErrorText, PageHeader } from "../../components/ui";
 import { api, formatDate, formatPercent } from "../../lib/api";
@@ -20,6 +21,9 @@ type TanuloEredmeny = {
   osszPont: number;
   maxPont: number;
   szazalek: number | null;
+  jegyAdando: boolean;
+  jegy: number | null;
+  jegyFelirat: string | null;
 };
 
 export function TanuloEredmenyekPage() {
@@ -87,12 +91,18 @@ export function TanuloEredmenyekPage() {
                   {e.szazalek !== null ? (
                     <Badge tone="good">{formatPercent(e.szazalek)}</Badge>
                   ) : null}
+                  {e.jegy != null && e.jegyFelirat ? (
+                    <Badge tone="good">{formatVizsgaJegy(e.jegy, e.jegyFelirat)}</Badge>
+                  ) : null}
                 </div>
                 <p className="mt-2 text-sm text-ink/60">
                   {formatDate(e.idoablakEleje)}
                   {e.bekuldveAt ? ` · beadva: ${formatDate(e.bekuldveAt)}` : ""}
                   {" · "}
                   {e.osszPont}/{e.maxPont} pont
+                  {e.jegy != null && e.jegyFelirat
+                    ? ` · ${formatVizsgaJegy(e.jegy, e.jegyFelirat)} · ${e.tantargyNev}`
+                    : ""}
                 </p>
               </div>
               <Button

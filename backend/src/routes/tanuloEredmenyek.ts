@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
+import { vizsgaJegyMezok } from "@oktateszt/shared";
 import { db } from "../db/index.js";
 import {
   evfolyam,
@@ -46,6 +47,7 @@ export const tanuloEredmenyRoutes = new Hono<AppEnv>()
         idoablakEleje: vizsga.idoablakEleje,
         bekuldveAt: kitoltes.bekuldveAt,
         kitoltesAllapot: kitoltes.allapot,
+        jegyAdando: vizsga.jegyAdando,
         maxPont: sql<number>`(
           select coalesce(sum(${vizsgaKerdes.pontszam}), 0)::int
           from ${vizsgaKerdes}
@@ -73,6 +75,7 @@ export const tanuloEredmenyRoutes = new Hono<AppEnv>()
       eredmenyek: rows.map((r) => {
         const maxPont = Number(r.maxPont);
         const osszPont = Number(r.osszPont);
+        const szazalek = maxPont > 0 ? Math.round((osszPont / maxPont) * 100) : null;
         return {
           vizsgaId: r.vizsgaId,
           kitoltesId: r.kitoltesId,
@@ -86,7 +89,9 @@ export const tanuloEredmenyRoutes = new Hono<AppEnv>()
           kitoltesAllapot: r.kitoltesAllapot,
           osszPont,
           maxPont,
-          szazalek: maxPont > 0 ? Math.round((osszPont / maxPont) * 100) : null,
+          szazalek,
+          jegyAdando: r.jegyAdando,
+          ...vizsgaJegyMezok(r.jegyAdando, szazalek),
         };
       }),
     });
